@@ -28,9 +28,53 @@ Sistema integral de gestión de leads y automatización de WhatsApp para **Nexa 
 - **Segmentación por fuente** y comportamiento
 - **Métricas de efectividad** en tiempo real
 
-## 🛠️ Instalación y Configuración
+## 🚀 Despliegue en Render.com
 
-### 1. **Requisitos Previos**
+### **Configuración Automática ✅**
+El proyecto incluye configuración automática para Render:
+
+**Archivos de configuración incluidos:**
+- `render.yaml` - Configuración automática del servicio
+- `Procfile` - Comando de inicio para producción
+- `runtime.txt` - Versión específica de Python
+- `gunicorn.conf.py` - Configuración optimizada de Gunicorn
+- `build.sh` - Script de build optimizado
+- `init_render.py` - Inicialización automática del entorno
+
+### **Pasos para Desplegar:**
+
+1. **Crear cuenta en [Render](https://render.com)**
+2. **Conectar repositorio de GitHub**
+3. **Render detectará automáticamente la configuración**
+4. **Configurar variables de entorno en el dashboard de Render**
+5. **Desplegar automáticamente**
+
+### **Variables de Entorno Requeridas en Render:**
+
+```env
+# Configuración de Twilio (WhatsApp Business API)
+TWILIO_ACCOUNT_SID=tu_account_sid_de_twilio
+TWILIO_AUTH_TOKEN=tu_auth_token_de_twilio
+WHATSAPP_FROM=whatsapp:+1234567890
+
+# Configuración de la aplicación
+SECRET_KEY=tu-secret-key-seguro
+FLASK_ENV=production
+DATABASE_URL=sqlite:///nexa_leads.db
+
+# Configuración de administrador
+ADMIN_WHATSAPP=+5491112345678
+
+# Configuración de OpenAI (opcional para respuestas inteligentes)
+OPENAI_API_KEY=tu_openai_api_key
+
+# Configuración de logging
+LOG_LEVEL=INFO
+```
+
+## 🛠️ Desarrollo Local
+
+### **Requisitos Previos**
 ```bash
 # Python 3.8+
 python --version
@@ -39,7 +83,7 @@ python --version
 git --version
 ```
 
-### 2. **Clonar e Instalar**
+### **Instalación Local**
 ```bash
 # Clonar el repositorio
 git clone <repository-url>
@@ -58,32 +102,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. **Configurar Variables de Entorno**
+### **Inicializar Base de Datos**
 ```bash
-# Copiar archivo de ejemplo
-cp env_example .env
-
-# Editar .env con tus credenciales
-```
-
-**Variables requeridas en `.env`:**
-```env
-# Twilio Configuration
-TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
-TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
-WHATSAPP_FROM=whatsapp:+1234567890
-
-# OpenAI Configuration (opcional para respuestas inteligentes)
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Dashboard Configuration
-SECRET_KEY=your-secret-key-here
-ADMIN_WHATSAPP=whatsapp:+5491112345678
-```
-
-### 4. **Inicializar Base de Datos**
-```bash
-# Ejecutar script de inicialización
 python init_db.py
 ```
 
@@ -93,25 +113,21 @@ Este script creará:
 - ✅ Leads de ejemplo
 - ✅ Campañas de demostración
 
-## 🚀 Uso del Sistema
-
-### **Iniciar el Dashboard Web**
+### **Ejecutar Localmente**
 ```bash
+# Dashboard web
 python dashboard.py
-```
-Acceder a: `http://localhost:5001`
-- Usuario: `admin`
-- Contraseña: `admin123`
+# Acceder a: http://localhost:5001
 
-### **Iniciar el Bot de WhatsApp**
-```bash
+# Bot de WhatsApp
 python app.py
+# Disponible en: http://localhost:5000
 ```
-El bot estará disponible en: `http://localhost:5000`
 
 ## 📱 Funcionalidades Principales
 
 ### **1. Gestión de Leads**
+- **Crear leads** manualmente desde el dashboard
 - **Importar leads** desde archivos CSV
 - **Seguimiento automático** con recordatorios
 - **Estados personalizables** para cada lead
@@ -240,7 +256,6 @@ El proyecto incluye configuración automática para Render:
 - Archivo `requirements.txt` optimizado sin dependencias problemáticas
 - Script `build.sh` simplificado sin pandas
 - Opción Docker con `render-docker.yaml`
-- Archivo `sample_leads.csv` incluido para pruebas
 
 ### **Opción 2: Heroku**
 ```bash
@@ -267,29 +282,6 @@ sudo nano /etc/nginx/sites-available/nexa-lead-manager
 
 # Configurar SSL con Let's Encrypt
 sudo certbot --nginx -d tu-dominio.com
-```
-
-### **Variables de Entorno Requeridas**
-
-```env
-# Configuración de Twilio (WhatsApp Business API)
-TWILIO_ACCOUNT_SID=tu_account_sid_de_twilio
-TWILIO_AUTH_TOKEN=tu_auth_token_de_twilio
-WHATSAPP_FROM=whatsapp:+1234567890
-
-# Configuración de la aplicación
-SECRET_KEY=tu-secret-key-seguro
-FLASK_ENV=production
-DATABASE_URL=sqlite:///nexa_leads.db
-
-# Configuración de administrador
-ADMIN_WHATSAPP=+5491112345678
-
-# Configuración de OpenAI (opcional)
-OPENAI_API_KEY=tu_openai_api_key
-
-# Configuración de logging
-LOG_LEVEL=INFO
 ```
 
 ## 📞 Soporte y Contacto

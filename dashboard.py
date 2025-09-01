@@ -40,6 +40,22 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return db.session.get(User, int(user_id))
 
+def create_interaction(lead_id, interaction_type, description, outcome):
+    """Crear una nueva interacción para un lead"""
+    try:
+        interaction = Interaction(
+            lead_id=lead_id,
+            interaction_type=interaction_type,
+            description=description,
+            outcome=outcome
+        )
+        db.session.add(interaction)
+        db.session.commit()
+        return True
+    except Exception as e:
+        logger.error(f"Error creando interacción: {e}")
+        return False
+
 # Rutas de autenticación
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -399,6 +415,129 @@ def import_leads():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leads', methods=['POST'])
+@login_required
+def create_lead():
+    """Crear nuevo lead manualmente"""
+    try:
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        if not data.get('phone_number'):
+            return jsonify({'error': 'Número de teléfono es requerido'}), 400
+        
+        # Verificar si el lead ya existe
+        existing_lead = Lead.query.filter_by(phone_number=data['phone_number']).first()
+        if existing_lead:
+            return jsonify({'error': 'Ya existe un lead con este número de teléfono'}), 400
+        
+        # Crear nuevo lead
+        lead = Lead(
+            phone_number=data['phone_number'],
+            name=data.get('name'),
+            email=data.get('email'),
+            company=data.get('company'),
+            source=LeadSource(data.get('source', 'otro')),
+            status=LeadStatus(data.get('status', 'nuevo')),
+            interest_level=data.get('interest_level', 1),
+            notes=data.get('notes'),
+            next_follow_up=datetime.utcnow() + timedelta(days=7)  # Seguimiento en 7 días
+        )
+        
+        db.session.add(lead)
+        db.session.commit()
+        
+        # Crear interacción inicial
+        create_interaction(
+            lead.id,
+            'lead_created',
+            'Lead creado manualmente desde el dashboard',
+            'completed'
+        )
+        
+        return jsonify({
+            'success': True,
+            'lead_id': lead.id,
+            'message': 'Lead creado correctamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leads/<int:lead_id>', methods=['PUT'])
+@login_required
+def update_lead(lead_id):
+    """Actualizar lead existente"""
+    try:
+        lead = Lead.query.get_or_404(lead_id)
+        data = request.get_json()
+        
+        # Actualizar campos
+        if 'name' in data:
+            lead.name = data['name']
+        if 'email' in data:
+            lead.email = data['email']
+        if 'company' in data:
+            lead.company = data['company']
+        if 'source' in data:
+            lead.source = LeadSource(data['source'])
+        if 'status' in data:
+            lead.status = LeadStatus(data['status'])
+        if 'interest_level' in data:
+            lead.interest_level = data['interest_level']
+        if 'notes' in data:
+            lead.notes = data['notes']
+        if 'next_follow_up' in data and data['next_follow_up']:
+            lead.next_follow_up = datetime.fromisoformat(data['next_follow_up'])
+        
+        lead.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        # Crear interacción de actualización
+        create_interaction(
+            lead.id,
+            'lead_updated',
+            'Lead actualizado desde el dashboard',
+            'completed'
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Lead actualizado correctamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/leads/<int:lead_id>', methods=['DELETE'])
+@login_required
+def delete_lead(lead_id):
+    """Eliminar lead"""
+    try:
+        lead = Lead.query.get_or_404(lead_id)
+        
+        # Crear interacción antes de eliminar
+        create_interaction(
+            lead.id,
+            'lead_deleted',
+            'Lead eliminado desde el dashboard',
+            'completed'
+        )
+        
+        db.session.delete(lead)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Lead eliminado correctamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 # Rutas para templates HTML

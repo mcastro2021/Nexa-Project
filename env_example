@@ -2,22 +2,26 @@
 # Copia este archivo como .env y configura las variables
 
 # Configuración de Twilio (WhatsApp Business API)
-TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
-TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+# Obtener en: https://www.twilio.com/console
+TWILIO_ACCOUNT_SID=AC1234567890abcdef...
+TWILIO_AUTH_TOKEN=your_auth_token_here
 WHATSAPP_FROM=whatsapp:+1234567890
 
 # Configuración de la aplicación
-SECRET_KEY=your-secret-key-change-in-production
-FLASK_ENV=development
-
-# Configuración de base de datos
+# Render generará automáticamente SECRET_KEY
+SECRET_KEY=your-secret-key-here
+FLASK_ENV=production
 DATABASE_URL=sqlite:///nexa_leads.db
 
 # Configuración de administrador
 ADMIN_WHATSAPP=+5491112345678
 
 # Configuración de OpenAI (opcional para respuestas inteligentes)
-OPENAI_API_KEY=your_openai_api_key_here
+# Obtener en: https://platform.openai.com/api-keys
+OPENAI_API_KEY=sk-1234567890abcdef...
 
 # Configuración de logging
 LOG_LEVEL=INFO
+
+# Variables adicionales para Render
+PYTHON_VERSION=3.10.12

@@ -102,29 +102,131 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-upload"></i>
-                    Importar Leads
-                </h5>
+                <h5 class="modal-title">Importar Leads desde CSV</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="importForm" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="csvFile" class="form-label">Archivo CSV</label>
-                        <input type="file" class="form-control" id="csvFile" name="file" accept=".csv" required>
-                        <div class="form-text">
-                            El archivo debe contener columnas: phone_number, name, email, company
+                <div class="mb-3">
+                    <label for="csvFile" class="form-label">Archivo CSV</label>
+                    <input type="file" class="form-control" id="csvFile" accept=".csv">
+                    <div class="form-text">El archivo debe tener columnas: nombre, teléfono, email, empresa, fuente</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="uploadLeads()">Importar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear/editar lead -->
+<div class="modal fade" id="leadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="leadModalTitle">Nuevo Lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="leadForm">
+                    <input type="hidden" id="leadId">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="leadName" class="form-label">Nombre *</label>
+                                <input type="text" class="form-control" id="leadName" required>
+                            </div>
                         </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="leadPhone" class="form-label">Teléfono *</label>
+                                <input type="tel" class="form-control" id="leadPhone" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="leadEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="leadEmail">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="leadCompany" class="form-label">Empresa</label>
+                                <input type="text" class="form-control" id="leadCompany">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="leadSource" class="form-label">Fuente</label>
+                                <select class="form-select" id="leadSource">
+                                    <option value="website">Website</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="referido">Referido</option>
+                                    <option value="redes_sociales">Redes Sociales</option>
+                                    <option value="evento">Evento</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="leadStatus" class="form-label">Estado</label>
+                                <select class="form-select" id="leadStatus">
+                                    <option value="nuevo">Nuevo</option>
+                                    <option value="contactado">Contactado</option>
+                                    <option value="interesado">Interesado</option>
+                                    <option value="calificado">Calificado</option>
+                                    <option value="convertido">Convertido</option>
+                                    <option value="perdido">Perdido</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="leadInterest" class="form-label">Nivel de Interés</label>
+                                <select class="form-select" id="leadInterest">
+                                    <option value="1">1 - Bajo</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3 - Medio</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5 - Alto</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="leadNotes" class="form-label">Notas</label>
+                        <textarea class="form-control" id="leadNotes" rows="3"></textarea>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-nexa" onclick="uploadLeads()">
-                    <i class="fas fa-upload"></i>
-                    Importar
-                </button>
+                <button type="button" class="btn btn-nexa" onclick="saveLead()">Guardar Lead</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver lead -->
+<div class="modal fade" id="viewLeadModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewLeadContent">
+                <!-- Contenido se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-nexa" onclick="editCurrentLead()">Editar</button>
             </div>
         </div>
     </div>
@@ -282,24 +384,232 @@ async function uploadLeads() {
 
 // Función para crear nuevo lead
 function createLead() {
-    // Implementar modal para crear lead
-    showNotification('Función en desarrollo', 'info');
+    const modal = new bootstrap.Modal(document.getElementById('leadModal'));
+    document.getElementById('leadModalTitle').textContent = 'Nuevo Lead';
+    document.getElementById('leadForm').reset();
+    document.getElementById('leadId').value = '';
+    modal.show();
+}
+
+// Función para guardar lead (crear o actualizar)
+async function saveLead() {
+    const leadId = document.getElementById('leadId').value;
+    const formData = {
+        name: document.getElementById('leadName').value,
+        phone_number: document.getElementById('leadPhone').value,
+        email: document.getElementById('leadEmail').value,
+        company: document.getElementById('leadCompany').value,
+        source: document.getElementById('leadSource').value,
+        status: document.getElementById('leadStatus').value,
+        interest_level: parseInt(document.getElementById('leadInterest').value),
+        notes: document.getElementById('leadNotes').value
+    };
+    
+    // Validar campos requeridos
+    if (!formData.name || !formData.phone_number) {
+        showNotification('Nombre y teléfono son campos requeridos', 'warning');
+        return;
+    }
+    
+    try {
+        const url = leadId ? `/api/leads/${leadId}` : '/api/leads';
+        const method = leadId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(data.message || 'Lead guardado correctamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('leadModal')).hide();
+            loadLeads(); // Recargar lista
+        } else {
+            showNotification(data.error || 'Error guardando lead', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
 }
 
 // Función para ver lead
-function viewLead(leadId) {
-    window.location.href = `/leads?id=${leadId}`;
+async function viewLead(leadId) {
+    try {
+        const response = await fetch(`/api/leads/${leadId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            const lead = data.lead;
+            const content = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Información Personal</h6>
+                        <p><strong>Nombre:</strong> ${lead.name || 'No especificado'}</p>
+                        <p><strong>Teléfono:</strong> ${lead.phone_number}</p>
+                        <p><strong>Email:</strong> ${lead.email || 'No especificado'}</p>
+                        <p><strong>Empresa:</strong> ${lead.company || 'No especificado'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Información del Lead</h6>
+                        <p><strong>Estado:</strong> <span class="badge bg-${getStatusBadgeColor(lead.status)}">${lead.status}</span></p>
+                        <p><strong>Fuente:</strong> ${lead.source}</p>
+                        <p><strong>Nivel de Interés:</strong> ${lead.interest_level}/5</p>
+                        <p><strong>Fecha de Creación:</strong> ${new Date(lead.created_at).toLocaleDateString()}</p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Notas</h6>
+                        <p>${lead.notes || 'Sin notas'}</p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Interacciones</h6>
+                        <div id="interactionsList">
+                            ${lead.interactions && lead.interactions.length > 0 ? 
+                                lead.interactions.map(interaction => `
+                                    <div class="card mb-2">
+                                        <div class="card-body p-2">
+                                            <small class="text-muted">${new Date(interaction.created_at).toLocaleString()}</small>
+                                            <p class="mb-1"><strong>${interaction.type}:</strong> ${interaction.description}</p>
+                                            <span class="badge bg-secondary">${interaction.outcome}</span>
+                                        </div>
+                                    </div>
+                                `).join('') : '<p class="text-muted">Sin interacciones registradas</p>'
+                            }
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('viewLeadContent').innerHTML = content;
+            document.getElementById('leadId').value = leadId;
+            
+            const modal = new bootstrap.Modal(document.getElementById('viewLeadModal'));
+            modal.show();
+        } else {
+            showNotification(data.error || 'Error cargando lead', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para editar lead actual
+function editCurrentLead() {
+    const leadId = document.getElementById('leadId').value;
+    if (leadId) {
+        // Cerrar modal de vista
+        bootstrap.Modal.getInstance(document.getElementById('viewLeadModal')).hide();
+        
+        // Abrir modal de edición
+        editLead(leadId);
+    }
+}
+
+// Función para editar lead
+async function editLead(leadId) {
+    try {
+        const response = await fetch(`/api/leads/${leadId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            const lead = data.lead;
+            
+            // Llenar formulario
+            document.getElementById('leadId').value = lead.id;
+            document.getElementById('leadName').value = lead.name || '';
+            document.getElementById('leadPhone').value = lead.phone_number;
+            document.getElementById('leadEmail').value = lead.email || '';
+            document.getElementById('leadCompany').value = lead.company || '';
+            document.getElementById('leadSource').value = lead.source;
+            document.getElementById('leadStatus').value = lead.status;
+            document.getElementById('leadInterest').value = lead.interest_level;
+            document.getElementById('leadNotes').value = lead.notes || '';
+            
+            // Cambiar título del modal
+            document.getElementById('leadModalTitle').textContent = 'Editar Lead';
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('leadModal'));
+            modal.show();
+        } else {
+            showNotification(data.error || 'Error cargando lead', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para eliminar lead
+async function deleteLead(leadId) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este lead? Esta acción no se puede deshacer.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/leads/${leadId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(data.message || 'Lead eliminado correctamente', 'success');
+            loadLeads(); // Recargar lista
+        } else {
+            showNotification(data.error || 'Error eliminando lead', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
 }
 
 // Función para enviar mensaje
 function sendMessage(leadId) {
-    window.location.href = `/leads?id=${leadId}&action=message`;
+    // Implementar envío de mensajes
+    showNotification('Función de envío de mensajes en desarrollo', 'info');
 }
 
-// Función para editar lead
-function editLead(leadId) {
-    // Implementar modal para editar lead
-    showNotification('Función en desarrollo', 'info');
+// Función helper para colores de badges de estado
+function getStatusBadgeColor(status) {
+    const colors = {
+        'nuevo': 'primary',
+        'contactado': 'info',
+        'interesado': 'warning',
+        'calificado': 'success',
+        'convertido': 'success',
+        'perdido': 'danger'
+    };
+    return colors[status] || 'secondary';
+}
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'info') {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Agregar al body
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 5 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
 }
 
 // Event listeners para filtros
