@@ -427,6 +427,45 @@ def delete_template(template_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/templates/<int:template_id>', methods=['PUT'])
+@login_required
+def update_template(template_id):
+    """Actualizar plantilla de mensaje"""
+    try:
+        template = MessageTemplate.query.get_or_404(template_id)
+        data = request.get_json()
+        
+        # Actualizar campos
+        if 'name' in data:
+            template.name = data['name']
+        if 'category' in data:
+            template.category = data['category']
+        if 'content' in data:
+            template.content = data['content']
+        if 'variables' in data:
+            template.variables = data['variables']
+        if 'is_active' in data:
+            template.is_active = data['is_active']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Plantilla actualizada correctamente',
+            'template': {
+                'id': template.id,
+                'name': template.name,
+                'category': template.category,
+                'content': template.content,
+                'variables': template.variables,
+                'is_active': template.is_active
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/analytics')
 @login_required
 def get_analytics():
