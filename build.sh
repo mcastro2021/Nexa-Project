@@ -6,12 +6,16 @@ echo "🚀 Iniciando build de Nexa Project..."
 echo "📦 Instalando dependencias..."
 pip install -r requirements.txt
 
-# Ejecutar migración forzada de base de datos
-echo "🗄️ Ejecutando migración forzada de base de datos..."
-python force_migrate.py
+# Ejecutar deploy forzado inmediato
+echo "🔧 Ejecutando deploy forzado inmediato..."
+python force_deploy_now.py
 
-# Verificar que la base de datos se creó correctamente
-echo "🔍 Verificando estado de la base de datos..."
-python check_db.py
+# Verificar el resultado del deploy
+if [ $? -eq 0 ]; then
+    echo "✅ Deploy forzado completado exitosamente!"
+else
+    echo "❌ Deploy forzado falló - revisar logs"
+    exit 1
+fi
 
 echo "✅ Build completado exitosamente!"
