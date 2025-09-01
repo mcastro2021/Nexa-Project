@@ -226,7 +226,68 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-info" onclick="predictLeadConversion(document.getElementById('leadId').value)">
+                    <i class="fas fa-chart-line"></i>
+                    Predicción IA
+                </button>
                 <button type="button" class="btn btn-nexa" onclick="editCurrentLead()">Editar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para enviar mensaje -->
+<div class="modal fade" id="sendMessageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enviar Mensaje a Lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="messageForm">
+                    <input type="hidden" id="messageLeadId">
+                    <div class="mb-3">
+                        <label for="messageTemplate" class="form-label">Plantilla de Mensaje</label>
+                        <select class="form-select" id="messageTemplate" onchange="loadTemplateContent()">
+                            <option value="">Seleccionar plantilla...</option>
+                            <option value="welcome">Mensaje de Bienvenida</option>
+                            <option value="follow_up">Seguimiento</option>
+                            <option value="offer">Oferta Especial</option>
+                            <option value="reminder">Recordatorio</option>
+                            <option value="custom">Mensaje Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="messageContent" class="form-label">Contenido del Mensaje</label>
+                        <div class="d-flex gap-2 mb-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="generateAIMessage()">
+                                <i class="fas fa-magic"></i>
+                                Generar con IA
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="analyzeMessageIntent()">
+                                <i class="fas fa-brain"></i>
+                                Analizar Intención
+                            </button>
+                        </div>
+                        <textarea class="form-control" id="messageContent" rows="6" placeholder="Escribe tu mensaje aquí..."></textarea>
+                        <div class="form-text">
+                            <strong>Variables disponibles:</strong> {name}, {company}, {status}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="messageSchedule" class="form-label">Programar Envío (opcional)</label>
+                        <input type="datetime-local" class="form-control" id="messageSchedule">
+                        <div class="form-text">Dejar vacío para enviar inmediatamente</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="sendMessageNow()">
+                    <i class="fas fa-paper-plane"></i>
+                    Enviar Mensaje
+                </button>
             </div>
         </div>
     </div>
@@ -295,6 +356,9 @@ function updateLeadsTable(leads) {
                 </button>
                 <button class="btn btn-sm btn-outline-success" onclick="sendMessage(${lead.id})">
                     <i class="fas fa-comment"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="predictLeadConversion(${lead.id})" title="Predicción IA">
+                    <i class="fas fa-chart-line"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-warning" onclick="editLead(${lead.id})">
                     <i class="fas fa-edit"></i>
@@ -573,8 +637,348 @@ async function deleteLead(leadId) {
 
 // Función para enviar mensaje
 function sendMessage(leadId) {
-    // Implementar envío de mensajes
-    showNotification('Función de envío de mensajes en desarrollo', 'info');
+    // Llenar el ID del lead en el modal
+    document.getElementById('messageLeadId').value = leadId;
+    
+    // Limpiar formulario
+    document.getElementById('messageForm').reset();
+    document.getElementById('messageContent').value = '';
+    
+    // Mostrar modal
+    const modal = new bootstrap.Modal(document.getElementById('sendMessageModal'));
+    modal.show();
+}
+
+// Función para cargar contenido de plantilla
+function loadTemplateContent() {
+    const template = document.getElementById('messageTemplate').value;
+    const content = document.getElementById('messageContent');
+    
+    const templates = {
+        'welcome': '¡Hola {name}! 👋\n\nGracias por tu interés en Nexa Constructora. Somos especialistas en construcción y desarrollo inmobiliario.\n\n¿En qué proyecto estás pensando? Estamos aquí para ayudarte.',
+        'follow_up': 'Hola {name}, ¿cómo estás?\n\nTe escribo para hacer seguimiento de tu interés en nuestros servicios de construcción.\n\n¿Te gustaría que conversemos sobre tu proyecto?',
+        'offer': '¡{name}! 🏗️\n\nTenemos una oferta especial para ti: 15% de descuento en proyectos de construcción que se inicien este mes.\n\n¿Te interesa aprovechar esta promoción?',
+        'reminder': 'Hola {name},\n\nTe recordamos que tenemos una cita programada para discutir tu proyecto de construcción.\n\n¿Confirmas que podemos proceder?',
+        'custom': ''
+    };
+    
+    if (template && template !== 'custom') {
+        content.value = templates[template];
+    } else {
+        content.value = '';
+    }
+}
+
+// Función para enviar mensaje ahora
+async function sendMessageNow() {
+    const leadId = document.getElementById('messageLeadId').value;
+    const content = document.getElementById('messageContent').value;
+    const schedule = document.getElementById('messageSchedule').value;
+    
+    if (!content.trim()) {
+        showNotification('Por favor, escribe un mensaje', 'warning');
+        return;
+    }
+    
+    try {
+        showNotification('Enviando mensaje...', 'info');
+        
+        const response = await fetch(`/api/leads/${leadId}/send-message`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: content,
+                scheduled: schedule || null
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification('Mensaje enviado correctamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('sendMessageModal')).hide();
+            
+            // Crear interacción
+            await createInteraction(leadId, 'message_sent', `Mensaje enviado: ${content.substring(0, 50)}...`, 'completed');
+            
+            // Recargar leads para actualizar la vista
+            loadLeads();
+        } else {
+            showNotification(data.error || 'Error enviando mensaje', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para crear interacción
+async function createInteraction(leadId, type, description, outcome) {
+    try {
+        const response = await fetch(`/api/leads/${leadId}/interaction`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                type: type,
+                description: description,
+                outcome: outcome
+            })
+        });
+        
+        return response.ok;
+    } catch (error) {
+        console.error('Error creando interacción:', error);
+        return false;
+    }
+}
+
+// Función para generar mensaje con IA
+async function generateAIMessage() {
+    const leadId = document.getElementById('messageLeadId').value;
+    const templateType = document.getElementById('messageTemplate').value;
+    
+    if (!templateType || templateType === 'custom') {
+        showNotification('Selecciona una plantilla para generar mensaje con IA', 'warning');
+        return;
+    }
+    
+    try {
+        showNotification('Generando mensaje con IA...', 'info');
+        
+        const response = await fetch('/api/ai/generate-message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                lead_id: leadId,
+                template_type: templateType
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('messageContent').value = data.message;
+            showNotification('Mensaje generado con IA', 'success');
+        } else {
+            showNotification(data.error || 'Error generando mensaje', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para analizar intención del mensaje
+async function analyzeMessageIntent() {
+    const messageContent = document.getElementById('messageContent').value;
+    const leadId = document.getElementById('messageLeadId').value;
+    
+    if (!messageContent.trim()) {
+        showNotification('Escribe un mensaje para analizar', 'warning');
+        return;
+    }
+    
+    try {
+        showNotification('Analizando intención...', 'info');
+        
+        // Obtener datos del lead
+        const leadResponse = await fetch(`/api/leads/${leadId}`);
+        const leadData = await leadResponse.json();
+        
+        if (!leadResponse.ok) {
+            showNotification('Error obteniendo datos del lead', 'danger');
+            return;
+        }
+        
+        const response = await fetch('/api/ai/analyze-intent', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: messageContent,
+                lead_data: leadData.lead
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            const analysis = data.analysis;
+            showIntentAnalysis(analysis);
+        } else {
+            showNotification(data.error || 'Error analizando intención', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para mostrar análisis de intención
+function showIntentAnalysis(analysis) {
+    const modal = `
+        <div class="modal fade" id="intentAnalysisModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-brain text-primary"></i>
+                            Análisis de Intención - IA
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Clasificación</h6>
+                                <p><strong>Intención:</strong> <span class="badge bg-primary">${analysis.intent}</span></p>
+                                <p><strong>Urgencia:</strong> ${'⭐'.repeat(analysis.urgency)} (${analysis.urgency}/5)</p>
+                                <p><strong>Conversión:</strong> ${'🔥'.repeat(analysis.conversion_probability)} (${analysis.conversion_probability}/5)</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Recomendaciones</h6>
+                                <p><strong>Acción:</strong> ${analysis.recommended_action}</p>
+                                <div class="alert alert-info">
+                                    <strong>Respuesta Sugerida:</strong><br>
+                                    ${analysis.suggested_response}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="button" class="btn btn-primary" onclick="useSuggestedResponse()">
+                            <i class="fas fa-check"></i>
+                            Usar Respuesta Sugerida
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal anterior si existe
+    const existingModal = document.getElementById('intentAnalysisModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Agregar nuevo modal
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Mostrar modal
+    const intentModal = new bootstrap.Modal(document.getElementById('intentAnalysisModal'));
+    intentModal.show();
+}
+
+// Función para usar respuesta sugerida
+function useSuggestedResponse() {
+    const intentModal = bootstrap.Modal.getInstance(document.getElementById('intentAnalysisModal'));
+    intentModal.hide();
+    
+    // Obtener la respuesta sugerida del modal
+    const suggestedResponse = document.querySelector('#intentAnalysisModal .alert-info strong').nextSibling.textContent.trim();
+    
+    // Aplicar al campo de mensaje
+    document.getElementById('messageContent').value = suggestedResponse;
+    
+    showNotification('Respuesta sugerida aplicada', 'success');
+}
+
+// Función para predecir conversión del lead
+async function predictLeadConversion(leadId) {
+    try {
+        const response = await fetch(`/api/ai/predict-conversion/${leadId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            showConversionPrediction(data.prediction);
+        } else {
+            showNotification(data.error || 'Error prediciendo conversión', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para mostrar predicción de conversión
+function showConversionPrediction(prediction) {
+    const modal = `
+        <div class="modal fade" id="conversionPredictionModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-chart-line text-success"></i>
+                            Predicción de Conversión - IA
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center mb-4">
+                            <h2 class="text-success">${prediction.conversion_probability}%</h2>
+                            <p class="text-muted">Probabilidad de Conversión</p>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Factores de Análisis</h6>
+                                <ul class="list-group">
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>Fuente del Lead</span>
+                                        <span class="badge bg-primary">${Math.round(prediction.factors.source_score * 100)}%</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>Interacciones</span>
+                                        <span class="badge bg-info">${Math.round(prediction.factors.interaction_score * 100)}%</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>Tiempo de Respuesta</span>
+                                        <span class="badge bg-warning">${Math.round(prediction.factors.response_time_score * 100)}%</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>Nivel de Interés</span>
+                                        <span class="badge bg-success">${Math.round(prediction.factors.interest_level_score * 100)}%</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Recomendaciones</h6>
+                                <ul class="list-group">
+                                    ${prediction.recommendations.map(rec => `<li class="list-group-item">${rec}</li>`).join('')}
+                                </ul>
+                                
+                                <div class="alert alert-info mt-3">
+                                    <strong>Siguiente Mejor Acción:</strong><br>
+                                    ${prediction.next_best_action}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remover modal anterior si existe
+    const existingModal = document.getElementById('conversionPredictionModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Agregar nuevo modal
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Mostrar modal
+    const conversionModal = new bootstrap.Modal(document.getElementById('conversionPredictionModal'));
+    conversionModal.show();
 }
 
 // Función helper para colores de badges de estado

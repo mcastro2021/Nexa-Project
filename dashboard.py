@@ -540,6 +540,121 @@ def delete_lead(lead_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/leads/<int:lead_id>/interaction', methods=['POST'])
+@login_required
+def create_lead_interaction(lead_id):
+    """Crear una nueva interacción para un lead"""
+    try:
+        lead = Lead.query.get_or_404(lead_id)
+        data = request.get_json()
+        
+        interaction = Interaction(
+            lead_id=lead_id,
+            interaction_type=data.get('type', 'general'),
+            description=data.get('description', ''),
+            outcome=data.get('outcome', 'completed')
+        )
+        
+        db.session.add(interaction)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Interacción creada correctamente',
+            'interaction_id': interaction.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/analyze-intent', methods=['POST'])
+@login_required
+def analyze_lead_intent():
+    """Analizar intención del lead usando IA"""
+    try:
+        from ai_features import ai_features
+        
+        data = request.get_json()
+        message_content = data.get('message')
+        lead_data = data.get('lead_data', {})
+        
+        if not message_content:
+            return jsonify({'error': 'Mensaje requerido'}), 400
+        
+        analysis = ai_features.analyze_lead_intent(message_content, lead_data)
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/predict-conversion/<int:lead_id>')
+@login_required
+def predict_lead_conversion(lead_id):
+    """Predecir probabilidad de conversión del lead"""
+    try:
+        from ai_features import ai_features
+        
+        lead = Lead.query.get_or_404(lead_id)
+        prediction = ai_features.predict_lead_conversion(lead)
+        
+        return jsonify({
+            'success': True,
+            'prediction': prediction
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/generate-message', methods=['POST'])
+@login_required
+def generate_personalized_message():
+    """Generar mensaje personalizado usando IA"""
+    try:
+        from ai_features import ai_features
+        
+        data = request.get_json()
+        lead_id = data.get('lead_id')
+        template_type = data.get('template_type', 'welcome')
+        
+        if not lead_id:
+            return jsonify({'error': 'ID de lead requerido'}), 400
+        
+        lead = Lead.query.get_or_404(lead_id)
+        message = ai_features.generate_personalized_message(lead, template_type)
+        
+        return jsonify({
+            'success': True,
+            'message': message
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/analyze-campaign/<int:campaign_id>')
+@login_required
+def analyze_campaign_performance(campaign_id):
+    """Analizar rendimiento de campaña usando IA"""
+    try:
+        from ai_features import ai_features
+        
+        analysis = ai_features.analyze_campaign_performance(campaign_id)
+        
+        if 'error' in analysis:
+            return jsonify(analysis), 400
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Rutas para templates HTML
 @app.route('/leads')
 @login_required
