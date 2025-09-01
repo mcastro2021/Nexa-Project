@@ -17,6 +17,8 @@ services:
         generateValue: true
       - key: FLASK_ENV
         value: production
+      - key: RENDER
+        value: "true"
       - key: DATABASE_URL
         value: sqlite:///nexa_leads.db
       - key: TWILIO_ACCOUNT_SID

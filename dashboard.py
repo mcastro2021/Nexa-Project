@@ -29,20 +29,27 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Configurar ruta de base de datos
-database_path = os.getenv('DATABASE_URL', 'sqlite:///instance/nexa_leads.db')
-if database_path.startswith('sqlite:///'):
-    # Si es una ruta relativa, convertir a absoluta
-    if not database_path.startswith('sqlite:////'):
-        db_file = database_path.replace('sqlite:///', '')
-        if not db_file.startswith('instance/'):
-            db_file = os.path.join('instance', db_file)
-        database_path = f'sqlite:///{db_file}'
+# En Render, usar directorio temporal o raíz del proyecto
+if os.getenv('RENDER'):
+    # Estamos en Render, usar directorio temporal
+    database_path = 'sqlite:///nexa_leads.db'
+    print("🚀 Detectado entorno Render - usando BD en directorio raíz")
+else:
+    # Entorno local, usar directorio instance
+    database_path = os.getenv('DATABASE_URL', 'sqlite:///instance/nexa_leads.db')
+    if database_path.startswith('sqlite:///'):
+        if not database_path.startswith('sqlite:////'):
+            db_file = database_path.replace('sqlite:///', '')
+            if not db_file.startswith('instance/'):
+                db_file = os.path.join('instance', db_file)
+            database_path = f'sqlite:///{db_file}'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configurar directorios
-os.makedirs('instance', exist_ok=True)
+# Configurar directorios (solo crear si no estamos en Render)
+if not os.getenv('RENDER'):
+    os.makedirs('instance', exist_ok=True)
 os.makedirs('logs', exist_ok=True)
 os.makedirs('uploads', exist_ok=True)
 
@@ -51,8 +58,13 @@ def force_migrate_database_on_startup():
     print("🚀 Iniciando migración forzada de base de datos al startup...")
     
     try:
-        # Verificar si la base de datos existe y tiene la estructura correcta
-        db_path = os.path.join('instance', 'nexa_leads.db')
+        # Determinar ruta de base de datos según el entorno
+        if os.getenv('RENDER'):
+            db_path = 'nexa_leads.db'  # En Render, usar directorio raíz
+            print("🗄️ Entorno Render detectado - BD en directorio raíz")
+        else:
+            db_path = os.path.join('instance', 'nexa_leads.db')  # Local
+            print("🗄️ Entorno local detectado - BD en directorio instance")
         
         if os.path.exists(db_path):
             # Verificar si la columna first_name existe
@@ -387,12 +399,22 @@ def health_check():
         file_status = {}
         for file in files:
             try:
-                file_path = os.path.join('instance', file)
-                if os.path.exists(file_path):
-                    size = os.path.getsize(file_path)
-                    file_status[file] = f"EXISTS ({size} bytes)"
-                else:
-                    file_status[file] = "MISSING"
+                # Verificar en ambos directorios posibles
+                file_paths = [file]  # Directorio raíz
+                if not os.getenv('RENDER'):
+                    file_paths.append(os.path.join('instance', file))  # Directorio instance
+                
+                file_found = False
+                for file_path in file_paths:
+                    if os.path.exists(file_path):
+                        size = os.path.getsize(file_path)
+                        file_status[file] = f"EXISTS at {file_path} ({size} bytes)"
+                        file_found = True
+                        break
+                
+                if not file_found:
+                    file_status[file] = "MISSING in all locations"
+                    
             except Exception as e:
                 file_status[file] = f"ERROR: {str(e)}"
         
