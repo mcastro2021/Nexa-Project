@@ -3,11 +3,13 @@ services:
     name: nexa-lead-manager
     env: python
     plan: starter
+    region: oregon
     autoDeploy: true
     repo: https://github.com/mcastro2021/Nexa-Project.git
     branch: main
     buildCommand: chmod +x build.sh && ./build.sh
     startCommand: gunicorn app:app
+    healthCheckPath: /
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.12
