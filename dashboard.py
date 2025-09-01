@@ -30,6 +30,213 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-pro
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///nexa_leads.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Configurar directorios
+os.makedirs('instance', exist_ok=True)
+os.makedirs('logs', exist_ok=True)
+os.makedirs('uploads', exist_ok=True)
+
+def force_migrate_database_on_startup():
+    """Migración forzada de base de datos al inicio de la aplicación"""
+    print("🚀 Iniciando migración forzada de base de datos al startup...")
+    
+    try:
+        # Verificar si la base de datos existe y tiene la estructura correcta
+        db_path = 'nexa_leads.db'
+        
+        if os.path.exists(db_path):
+            # Verificar si la columna first_name existe
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(user)")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                if 'first_name' in columns:
+                    print("✅ Base de datos ya tiene la estructura correcta")
+                    conn.close()
+                    return True
+                else:
+                    print("⚠️ Columna 'first_name' no existe, ejecutando migración...")
+                    conn.close()
+            except Exception as e:
+                print(f"⚠️ Error verificando BD: {e}")
+        
+        # Ejecutar migración forzada
+        print("🗄️ Ejecutando migración forzada...")
+        
+        # Eliminar base de datos existente si existe
+        if os.path.exists(db_path):
+            try:
+                os.remove(db_path)
+                print("🗑️ Base de datos anterior eliminada")
+            except Exception as e:
+                print(f"⚠️ No se pudo eliminar BD anterior: {e}")
+        
+        # Crear nueva base de datos
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Crear tabla user con todas las columnas
+        cursor.execute("""
+            CREATE TABLE user (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                first_name TEXT,
+                last_name TEXT,
+                phone_number TEXT,
+                role TEXT DEFAULT 'user',
+                is_active INTEGER DEFAULT 1,
+                last_login DATETIME,
+                password_changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        print("✅ Tabla 'user' creada")
+        
+        # Crear tabla lead
+        cursor.execute("""
+            CREATE TABLE lead (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                phone_number TEXT UNIQUE NOT NULL,
+                email TEXT,
+                company TEXT,
+                status TEXT DEFAULT 'NUEVO',
+                source TEXT DEFAULT 'OTRO',
+                interest_level INTEGER DEFAULT 3,
+                notes TEXT,
+                next_follow_up DATETIME,
+                last_contact_date DATETIME,
+                priority TEXT DEFAULT 'medium',
+                estimated_value REAL,
+                project_type TEXT,
+                location TEXT,
+                created_by_id INTEGER,
+                assigned_to_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        print("✅ Tabla 'lead' creada")
+        
+        # Crear tabla message
+        cursor.execute("""
+            CREATE TABLE message (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                message_type TEXT DEFAULT 'outbound',
+                status TEXT DEFAULT 'pending',
+                scheduled_at DATETIME,
+                sent_at DATETIME,
+                delivered_at DATETIME,
+                read_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES lead (id)
+            )
+        """)
+        print("✅ Tabla 'message' creada")
+        
+        # Crear tabla message_template
+        cursor.execute("""
+            CREATE TABLE message_template (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                content TEXT NOT NULL,
+                variables TEXT,
+                is_active INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        print("✅ Tabla 'message_template' creada")
+        
+        # Crear tabla campaign
+        cursor.execute("""
+            CREATE TABLE campaign (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                template_id INTEGER,
+                target_status TEXT,
+                target_source TEXT,
+                scheduled_date DATETIME,
+                is_active INTEGER DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (template_id) REFERENCES message_template (id)
+            )
+        """)
+        print("✅ Tabla 'campaign' creada")
+        
+        # Crear tabla campaign_result
+        cursor.execute("""
+            CREATE TABLE campaign_result (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                campaign_id INTEGER NOT NULL,
+                lead_id INTEGER NOT NULL,
+                message_id INTEGER NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (campaign_id) REFERENCES campaign (id),
+                FOREIGN KEY (lead_id) REFERENCES lead (id),
+                FOREIGN KEY (message_id) REFERENCES message (id)
+            )
+        """)
+        print("✅ Tabla 'campaign_result' creada")
+        
+        # Crear tabla interaction
+        cursor.execute("""
+            CREATE TABLE interaction (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id INTEGER NOT NULL,
+                interaction_type TEXT NOT NULL,
+                description TEXT,
+                outcome TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES lead (id)
+            )
+        """)
+        print("✅ Tabla 'interaction' creada")
+        
+        # Insertar datos iniciales
+        print("📝 Insertando datos iniciales...")
+        
+        # Usuario administrador
+        admin_password = generate_password_hash('admin123')
+        cursor.execute("""
+            INSERT INTO user (username, email, password_hash, first_name, last_name, role, is_active)
+            VALUES ('admin', 'admin@nexa.com', ?, 'Administrador', 'Sistema', 'admin', 1)
+        """, (admin_password,))
+        print("✅ Usuario administrador creado: admin/admin123")
+        
+        # Plantillas de mensaje
+        cursor.execute("""
+            INSERT INTO message_template (name, category, content, is_active) VALUES 
+            ('Bienvenida', 'welcome', '¡Hola {name}! Gracias por tu interés en Nexa Constructora. ¿En qué proyecto estás pensando?', 1),
+            ('Seguimiento', 'follow_up', 'Hola {name}, ¿cómo estás? Te escribo para hacer seguimiento de tu interés en nuestros servicios.', 1),
+            ('Oferta', 'offer', '¡{name}! Tenemos una oferta especial para ti: 15% de descuento en proyectos de construcción.', 1)
+        """)
+        print("✅ Plantillas de mensaje creadas")
+        
+        # Commit y cerrar
+        conn.commit()
+        conn.close()
+        
+        print("✅ Migración forzada completada exitosamente!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error durante la migración forzada: {e}")
+        return False
+
+# Ejecutar migración forzada al startup
+print("🚀 Nexa Project - Iniciando con migración forzada...")
+force_migrate_database_on_startup()
+
 # Inicializar extensiones
 db.init_app(app)
 login_manager = LoginManager()
