@@ -255,7 +255,7 @@ class NexaAI:
             Lead: {lead.name} - {lead.company or 'Sin empresa'}
             Estado: {lead.status.value}
             Fuente: {lead.source.value}
-            Nivel de interés: {lead.lead.interest_level}/5
+            Nivel de interés: {lead.interest_level}/5
             
             Tipo de mensaje: {template_type}
             

@@ -30,6 +30,36 @@ Sistema integral de gestión de leads y automatización de WhatsApp para **Nexa 
 
 ## 🚀 Despliegue en Render.com
 
+### Despliegue Automático
+El proyecto está configurado para auto-deploy en Render.com. Cada vez que hagas `git push` a la rama principal, Render detectará automáticamente los cambios y hará redeploy.
+
+**Configuración incluida:**
+- ✅ `render.yaml` con `autoDeploy: true`
+- ✅ GitHub Actions workflow para deploys automáticos
+- ✅ Script de deploy forzado como respaldo
+
+### Configuración del Auto-Deploy
+1. **Actualiza la URL del repositorio** en `render.yaml`:
+   ```yaml
+   repo: https://github.com/TU_USUARIO/Nexa-Project.git
+   ```
+
+2. **Configura los secrets de GitHub** (ver `AUTO_DEPLOY_SETUP.md`):
+   - `RENDER_TOKEN`: Token de autenticación de Render
+   - `RENDER_SERVICE_ID`: ID de tu servicio en Render
+
+3. **Haz push** y Render hará deploy automáticamente
+
+### Deploy Manual (Si es necesario)
+Si el auto-deploy no funciona, usa el script incluido:
+```bash
+python webhook-render.py deploy
+```
+
+**Para más detalles, consulta:** `AUTO_DEPLOY_SETUP.md`
+
+### Despliegue Manual
+
 ### **Configuración Automática ✅**
 El proyecto incluye configuración automática para Render:
 

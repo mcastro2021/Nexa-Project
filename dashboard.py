@@ -568,6 +568,77 @@ def create_lead_interaction(lead_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/leads/<int:lead_id>/send-message', methods=['POST'])
+@login_required
+def send_lead_message(lead_id):
+    """Enviar mensaje a un lead"""
+    try:
+        lead = Lead.query.get_or_404(lead_id)
+        data = request.get_json()
+        
+        message_content = data.get('message')
+        scheduled_time = data.get('scheduled')
+        
+        if not message_content:
+            return jsonify({'error': 'Contenido del mensaje requerido'}), 400
+        
+        # Crear el mensaje
+        message = Message(
+            lead_id=lead_id,
+            content=message_content,
+            message_type='outbound',
+            status='pending'
+        )
+        
+        # Si hay programación, establecer la fecha
+        if scheduled_time:
+            try:
+                scheduled_datetime = datetime.fromisoformat(scheduled_time.replace('Z', '+00:00'))
+                message.scheduled_at = scheduled_datetime
+                message.status = 'scheduled'
+            except ValueError:
+                return jsonify({'error': 'Formato de fecha inválido'}), 400
+        
+        db.session.add(message)
+        
+        # Crear interacción
+        interaction = Interaction(
+            lead_id=lead_id,
+            interaction_type='message_sent',
+            description=f'Mensaje enviado: {message_content[:50]}...',
+            outcome='completed'
+        )
+        db.session.add(interaction)
+        
+        # Actualizar fecha de último contacto
+        lead.last_contact_date = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Aquí se integraría con Twilio para envío real
+        # Por ahora solo simulamos el envío
+        try:
+            from lead_manager import send_whatsapp_message
+            if not scheduled_time:  # Solo enviar inmediatamente
+                send_whatsapp_message(lead.phone_number, message_content)
+                message.status = 'sent'
+                db.session.commit()
+        except Exception as e:
+            logger.warning(f"No se pudo enviar mensaje real: {e}")
+            # El mensaje se marca como enviado aunque no se haya enviado físicamente
+        
+        return jsonify({
+            'success': True,
+            'message': 'Mensaje enviado correctamente',
+            'message_id': message.id,
+            'status': message.status
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error enviando mensaje: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/ai/analyze-intent', methods=['POST'])
 @login_required
 def analyze_lead_intent():

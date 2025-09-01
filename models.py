@@ -32,16 +32,16 @@ class User(UserMixin, db.Model):
 
 class Lead(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20), nullable=False)
-    name = db.Column(db.String(100))
+    name = db.Column(db.String(100), nullable=False)
+    phone_number = db.Column(db.String(20), nullable=False, unique=True)
     email = db.Column(db.String(120))
     company = db.Column(db.String(100))
-    source = db.Column(db.Enum(LeadSource), default=LeadSource.WEBSITE)
     status = db.Column(db.Enum(LeadStatus), default=LeadStatus.NUEVO)
-    interest_level = db.Column(db.Integer, default=1)  # 1-5 escala
+    source = db.Column(db.Enum(LeadSource), default=LeadSource.OTRO)
+    interest_level = db.Column(db.Integer, default=3)  # 1-5
     notes = db.Column(db.Text)
-    last_contact_date = db.Column(db.DateTime)
     next_follow_up = db.Column(db.DateTime)
+    last_contact_date = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -60,11 +60,17 @@ class Interaction(db.Model):
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('lead.id'), nullable=False)
-    message_type = db.Column(db.String(50), nullable=False)  # sent, received
     content = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(20), default='sent')  # sent, delivered, read, failed
-    twilio_sid = db.Column(db.String(100))
+    message_type = db.Column(db.String(20), default='outbound')  # inbound, outbound
+    status = db.Column(db.String(20), default='pending')  # pending, sent, delivered, read, failed, scheduled
+    scheduled_at = db.Column(db.DateTime)
+    sent_at = db.Column(db.DateTime)
+    delivered_at = db.Column(db.DateTime)
+    read_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relaciones
+    campaign_results = db.relationship('CampaignResult', backref='message', lazy=True, cascade='all, delete-orphan')
 
 class MessageTemplate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
