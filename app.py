@@ -19,10 +19,10 @@ if not os.getenv('FLASK_ENV'):
     os.environ['FLASK_ENV'] = 'production'
 
 if not os.getenv('DATABASE_URL'):
-    os.environ['DATABASE_URL'] = 'sqlite:///nexa_leads.db'
+    os.environ['DATABASE_URL'] = 'sqlite:///instance/nexa_leads.db'
 
 # Crear directorios necesarios
-directories = ['logs', 'uploads', 'temp']
+directories = ['logs', 'uploads', 'temp', 'instance']
 for directory in directories:
     Path(directory).mkdir(exist_ok=True)
 

@@ -27,7 +27,18 @@ logger = logging.getLogger(__name__)
 # Configuración de la aplicación
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///nexa_leads.db'
+
+# Configurar ruta de base de datos
+database_path = os.getenv('DATABASE_URL', 'sqlite:///instance/nexa_leads.db')
+if database_path.startswith('sqlite:///'):
+    # Si es una ruta relativa, convertir a absoluta
+    if not database_path.startswith('sqlite:////'):
+        db_file = database_path.replace('sqlite:///', '')
+        if not db_file.startswith('instance/'):
+            db_file = os.path.join('instance', db_file)
+        database_path = f'sqlite:///{db_file}'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Configurar directorios
@@ -41,7 +52,7 @@ def force_migrate_database_on_startup():
     
     try:
         # Verificar si la base de datos existe y tiene la estructura correcta
-        db_path = 'nexa_leads.db'
+        db_path = os.path.join('instance', 'nexa_leads.db')
         
         if os.path.exists(db_path):
             # Verificar si la columna first_name existe
@@ -243,6 +254,49 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# Crear todas las tablas de la base de datos
+with app.app_context():
+    try:
+        print("🗄️ Creando tablas de la base de datos...")
+        
+        # Verificar que la base de datos esté disponible
+        if not db.engine:
+            print("❌ Motor de base de datos no disponible")
+            raise Exception("Motor de base de datos no disponible")
+        
+        # Crear tablas
+        db.create_all()
+        print("✅ Tablas creadas exitosamente")
+        
+        # Verificar que las tablas se crearon correctamente
+        inspector = db.inspect(db.engine)
+        tables = inspector.get_table_names()
+        print(f"📋 Tablas disponibles: {tables}")
+        
+        # Crear usuario admin por defecto si no existe
+        admin_user = User.query.filter_by(username='admin').first()
+        if not admin_user:
+            from werkzeug.security import generate_password_hash
+            admin_user = User(
+                username='admin',
+                email='admin@nexaconstructora.com.ar',
+                password_hash=generate_password_hash('admin123'),
+                first_name='Administrador',
+                last_name='Sistema',
+                role='admin',
+                is_active=True
+            )
+            db.session.add(admin_user)
+            db.session.commit()
+            print("✅ Usuario admin creado: admin / admin123")
+        else:
+            print("ℹ️ Usuario admin ya existe")
+            
+    except Exception as e:
+        print(f"❌ Error creando tablas: {e}")
+        print("⚠️ La aplicación continuará pero puede no funcionar correctamente")
+        # Continuar con la aplicación incluso si hay errores de BD
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -267,15 +321,30 @@ def create_interaction(lead_id, interaction_type, description, outcome):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        
-        if user and check_password_hash(user.password_hash, password):
-            login_user(user)
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Usuario o contraseña incorrectos')
+        try:
+            username = request.form['username']
+            password = request.form['password']
+            
+            # Verificar que la base de datos esté disponible
+            if not db.engine:
+                logger.error("Base de datos no disponible")
+                flash('Error del sistema. Por favor, contacte al administrador.')
+                return render_template('login.html'), 500
+            
+            user = User.query.filter_by(username=username).first()
+            
+            if user and check_password_hash(user.password_hash, password):
+                login_user(user)
+                logger.info(f"Usuario {username} autenticado exitosamente")
+                return redirect(url_for('dashboard'))
+            else:
+                logger.warning(f"Intento de login fallido para usuario: {username}")
+                flash('Usuario o contraseña incorrectos')
+                
+        except Exception as e:
+            logger.error(f"Error durante el login: {e}")
+            flash('Error del sistema. Por favor, contacte al administrador.')
+            return render_template('login.html'), 500
     
     return render_template('login.html')
 
@@ -284,6 +353,68 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/health')
+def health_check():
+    """Endpoint de verificación de salud del sistema"""
+    try:
+        # Verificar base de datos
+        db_status = "OK"
+        try:
+            if db.engine:
+                # Intentar una consulta simple
+                db.session.execute("SELECT 1")
+                db_status = "OK"
+            else:
+                db_status = "ERROR: No engine disponible"
+        except Exception as e:
+            db_status = f"ERROR: {str(e)}"
+        
+        # Verificar directorios
+        directories = ['instance', 'logs', 'uploads']
+        dir_status = {}
+        for directory in directories:
+            try:
+                if os.path.exists(directory):
+                    dir_status[directory] = "EXISTS"
+                else:
+                    dir_status[directory] = "MISSING"
+            except Exception as e:
+                dir_status[directory] = f"ERROR: {str(e)}"
+        
+        # Verificar archivos críticos
+        files = ['nexa_leads.db']
+        file_status = {}
+        for file in files:
+            try:
+                file_path = os.path.join('instance', file)
+                if os.path.exists(file_path):
+                    size = os.path.getsize(file_path)
+                    file_status[file] = f"EXISTS ({size} bytes)"
+                else:
+                    file_status[file] = "MISSING"
+            except Exception as e:
+                file_status[file] = f"ERROR: {str(e)}"
+        
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': db_status,
+            'directories': dir_status,
+            'files': file_status,
+            'environment': {
+                'FLASK_ENV': os.getenv('FLASK_ENV', 'not_set'),
+                'DATABASE_URL': os.getenv('DATABASE_URL', 'not_set'),
+                'SECRET_KEY': 'set' if os.getenv('SECRET_KEY') else 'not_set'
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
 
 # Rutas principales
 @app.route('/')
