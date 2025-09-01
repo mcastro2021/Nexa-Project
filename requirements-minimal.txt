@@ -1,4 +1,4 @@
-# Requirements específicos para Render con wheels precompilados
+# Requirements mínimos sin pandas (para casos extremos)
 Flask==2.3.3
 twilio==8.10.0
 openai==1.102.0
@@ -10,8 +10,6 @@ Flask-Login==0.6.3
 Flask-WTF==1.1.1
 WTForms==3.0.1
 requests==2.31.0
-# pandas se instala por separado con --only-binary=all
-plotly==5.15.0
-kaleido==0.2.1
 APScheduler==3.10.4
 email-validator==2.0.0
+# Nota: pandas y plotly se instalarán manualmente si es necesario

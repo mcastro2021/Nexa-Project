@@ -15,7 +15,7 @@ COPY requirements-render.txt .
 
 # Instalar pandas primero con wheels precompilados
 RUN pip install --upgrade pip && \
-    pip install --only-binary=all pandas==2.2.0
+    pip install --only-binary=all pandas==2.0.3
 
 # Instalar el resto de dependencias
 RUN pip install -r requirements-render.txt

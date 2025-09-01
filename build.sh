@@ -10,7 +10,7 @@ pip install --upgrade pip
 
 # Instalar pandas primero con wheels precompilados
 echo "📊 Instalando pandas con wheels precompilados..."
-pip install --only-binary=all pandas==2.2.0
+pip install --only-binary=all pandas==2.0.3
 
 # Instalar el resto de dependencias
 echo "📦 Instalando dependencias de Python..."

@@ -1,13 +1,10 @@
 services:
   - type: web
-    name: nexa-lead-manager
-    env: python
+    name: nexa-lead-manager-docker
+    env: docker
     plan: starter
-    buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: gunicorn dashboard:app
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.5
       - key: SECRET_KEY
         generateValue: true
       - key: FLASK_ENV

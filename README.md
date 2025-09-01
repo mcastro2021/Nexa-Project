@@ -236,8 +236,11 @@ El proyecto incluye configuración automática para Render:
 
 **Solución para errores de pandas:**
 - El proyecto incluye `build.sh` que instala pandas con wheels precompilados
-- Versiones actualizadas para compatibilidad con Python 3.11
+- Versiones actualizadas para compatibilidad con Python 3.11.5
 - Archivo `requirements-render.txt` específico para Render
+- Script alternativo `build-fallback.sh` para casos extremos
+- Opción Docker con `render-docker.yaml`
+- Archivo `requirements-minimal.txt` sin pandas como respaldo
 
 ### **Opción 2: Heroku**
 ```bash
