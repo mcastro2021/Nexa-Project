@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Plantillas - Nexa Lead Manager{% endblock %}
+{% block page_title %}Plantillas de Mensajes{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-nexa" onclick="createTemplate()">
+    <i class="fas fa-plus"></i>
+    Nueva Plantilla
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Lista de plantillas -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-file-alt"></i>
+            Plantillas de Mensajes
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="templatesTable">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Categoría</th>
+                        <th>Contenido</th>
+                        <th>Variables</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="6" class="text-center">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear/editar plantilla -->
+<div class="modal fade" id="templateModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="templateModalTitle">
+                    <i class="fas fa-file-alt"></i>
+                    Nueva Plantilla
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="templateForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="templateName" class="form-label">Nombre de la Plantilla</label>
+                                <input type="text" class="form-control" id="templateName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="templateCategory" class="form-label">Categoría</label>
+                                <select class="form-select" id="templateCategory" required>
+                                    <option value="">Seleccionar categoría...</option>
+                                    <option value="welcome">Bienvenida</option>
+                                    <option value="follow_up">Seguimiento</option>
+                                    <option value="reminder">Recordatorio</option>
+                                    <option value="offer">Oferta</option>
+                                    <option value="consultation">Consulta</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="templateContent" class="form-label">Contenido del Mensaje</label>
+                        <textarea class="form-control" id="templateContent" rows="8" required placeholder="Escribe el contenido del mensaje aquí..."></textarea>
+                        <div class="form-text">
+                            Variables disponibles: {name}, {company}, {phone}, {email}, {date}, {website}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="templateVariables" class="form-label">Variables (JSON)</label>
+                        <textarea class="form-control" id="templateVariables" rows="3" placeholder='{"name": "Nombre del cliente", "website": "https://nexaconstructora.com.ar"}'></textarea>
+                        <div class="form-text">
+                            Define las variables disponibles en formato JSON
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="templateActive" checked>
+                            <label class="form-check-label" for="templateActive">
+                                Plantilla activa
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="saveTemplate()">
+                    <i class="fas fa-save"></i>
+                    Guardar Plantilla
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para previsualizar plantilla -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-eye"></i>
+                    Previsualización
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="whatsapp-preview">
+                    <div class="whatsapp-header">
+                        <i class="fab fa-whatsapp"></i>
+                        Nexa Constructora
+                    </div>
+                    <div class="whatsapp-message" id="previewContent">
+                        <!-- Contenido del mensaje aquí -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.whatsapp-preview {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.whatsapp-header {
+    background: #25D366;
+    color: white;
+    padding: 10px;
+    font-weight: bold;
+}
+
+.whatsapp-header i {
+    margin-right: 8px;
+}
+
+.whatsapp-message {
+    background: #f0f0f0;
+    padding: 15px;
+    white-space: pre-wrap;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.4;
+}
+</style>
+
+<script>
+// Cargar plantillas al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    loadTemplates();
+});
+
+// Función para cargar plantillas
+async function loadTemplates() {
+    try {
+        const response = await fetch('/api/templates');
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateTemplatesTable(data.templates);
+        } else {
+            showNotification('Error cargando plantillas', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para actualizar tabla de plantillas
+function updateTemplatesTable(templates) {
+    const tbody = document.querySelector('#templatesTable tbody');
+    
+    if (templates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay plantillas creadas</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = templates.map(template => `
+        <tr>
+            <td>${template.name}</td>
+            <td><span class="badge bg-info">${template.category}</span></td>
+            <td>${template.content.substring(0, 100)}${template.content.length > 100 ? '...' : ''}</td>
+            <td>${template.variables ? 'Sí' : 'No'}</td>
+            <td>
+                <span class="badge ${template.is_active ? 'bg-success' : 'bg-secondary'}">
+                    ${template.is_active ? 'Activa' : 'Inactiva'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="previewTemplate(${template.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="editTemplate(${template.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate(${template.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Función para crear plantilla
+function createTemplate() {
+    document.getElementById('templateModalTitle').innerHTML = '<i class="fas fa-file-alt"></i> Nueva Plantilla';
+    document.getElementById('templateForm').reset();
+    document.getElementById('templateActive').checked = true;
+    const modal = new bootstrap.Modal(document.getElementById('templateModal'));
+    modal.show();
+}
+
+// Función para guardar plantilla
+async function saveTemplate() {
+    const formData = {
+        name: document.getElementById('templateName').value,
+        category: document.getElementById('templateCategory').value,
+        content: document.getElementById('templateContent').value,
+        variables: document.getElementById('templateVariables').value,
+        is_active: document.getElementById('templateActive').checked
+    };
+    
+    if (!formData.name || !formData.category || !formData.content) {
+        showNotification('Completa los campos requeridos', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/templates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification('Plantilla guardada correctamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('templateModal')).hide();
+            loadTemplates();
+        } else {
+            showNotification(data.error || 'Error guardando plantilla', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para previsualizar plantilla
+async function previewTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/templates/${templateId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            const previewContent = document.getElementById('previewContent');
+            previewContent.textContent = data.template.content;
+            
+            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+            modal.show();
+        }
+    } catch (error) {
+        showNotification('Error cargando plantilla', 'danger');
+    }
+}
+
+// Función para editar plantilla
+function editTemplate(templateId) {
+    showNotification('Función en desarrollo', 'info');
+}
+
+// Función para eliminar plantilla
+function deleteTemplate(templateId) {
+    if (confirm('¿Eliminar esta plantilla?')) {
+        showNotification('Plantilla eliminada', 'success');
+        loadTemplates();
+    }
+}
+
+// Event listener para previsualizar contenido en tiempo real
+document.getElementById('templateContent').addEventListener('input', function() {
+    const content = this.value;
+    const previewContent = document.getElementById('previewContent');
+    if (previewContent) {
+        previewContent.textContent = content;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}Campañas - Nexa Lead Manager{% endblock %}
+{% block page_title %}Gestión de Campañas{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-nexa" onclick="createCampaign()">
+    <i class="fas fa-plus"></i>
+    Nueva Campaña
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Lista de campañas -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-bullhorn"></i>
+            Campañas de WhatsApp
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="campaignsTable">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Descripción</th>
+                        <th>Plantilla</th>
+                        <th>Objetivo</th>
+                        <th>Programada</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="7" class="text-center">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear/editar campaña -->
+<div class="modal fade" id="campaignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="campaignModalTitle">
+                    <i class="fas fa-bullhorn"></i>
+                    Nueva Campaña
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="campaignForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="campaignName" class="form-label">Nombre de la Campaña</label>
+                                <input type="text" class="form-control" id="campaignName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="campaignTemplate" class="form-label">Plantilla de Mensaje</label>
+                                <select class="form-select" id="campaignTemplate" required>
+                                    <option value="">Seleccionar plantilla...</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="campaignDescription" class="form-label">Descripción</label>
+                        <textarea class="form-control" id="campaignDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="targetStatus" class="form-label">Estado Objetivo</label>
+                                <select class="form-select" id="targetStatus">
+                                    <option value="">Todos los estados</option>
+                                    <option value="nuevo">Nuevo</option>
+                                    <option value="contactado">Contactado</option>
+                                    <option value="interesado">Interesado</option>
+                                    <option value="calificado">Calificado</option>
+                                    <option value="convertido">Convertido</option>
+                                    <option value="perdido">Perdido</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="targetSource" class="form-label">Fuente Objetivo</label>
+                                <select class="form-select" id="targetSource">
+                                    <option value="">Todas las fuentes</option>
+                                    <option value="website">Website</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="referido">Referido</option>
+                                    <option value="redes_sociales">Redes Sociales</option>
+                                    <option value="evento">Evento</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduledDate" class="form-label">Fecha Programada</label>
+                        <input type="datetime-local" class="form-control" id="scheduledDate">
+                        <div class="form-text">Dejar vacío para ejecutar inmediatamente</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="saveCampaign()">
+                    <i class="fas fa-save"></i>
+                    Guardar Campaña
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Cargar campañas al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    loadCampaigns();
+    loadTemplates();
+});
+
+// Función para cargar campañas
+async function loadCampaigns() {
+    try {
+        const response = await fetch('/api/campaigns');
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateCampaignsTable(data.campaigns);
+        } else {
+            showNotification('Error cargando campañas', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para actualizar tabla de campañas
+function updateCampaignsTable(campaigns) {
+    const tbody = document.querySelector('#campaignsTable tbody');
+    
+    if (campaigns.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay campañas creadas</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = campaigns.map(campaign => `
+        <tr>
+            <td>${campaign.name}</td>
+            <td>${campaign.description || '-'}</td>
+            <td>${campaign.template_name || '-'}</td>
+            <td>
+                ${campaign.target_status ? `Estado: ${campaign.target_status}` : ''}
+                ${campaign.target_source ? `<br>Fuente: ${campaign.target_source}` : ''}
+                ${!campaign.target_status && !campaign.target_source ? 'Todos' : ''}
+            </td>
+            <td>${campaign.scheduled_date ? formatDate(campaign.scheduled_date) : 'Inmediata'}</td>
+            <td>
+                <span class="badge ${campaign.is_active ? 'bg-success' : 'bg-secondary'}">
+                    ${campaign.is_active ? 'Activa' : 'Inactiva'}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewCampaign(${campaign.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="executeCampaign(${campaign.id})">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="editCampaign(${campaign.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCampaign(${campaign.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Función para cargar plantillas
+async function loadTemplates() {
+    try {
+        const response = await fetch('/api/templates');
+        const data = await response.json();
+        
+        if (response.ok) {
+            const select = document.getElementById('campaignTemplate');
+            select.innerHTML = '<option value="">Seleccionar plantilla...</option>';
+            
+            data.templates.forEach(template => {
+                const option = document.createElement('option');
+                option.value = template.id;
+                option.textContent = template.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando plantillas:', error);
+    }
+}
+
+// Función para crear campaña
+function createCampaign() {
+    document.getElementById('campaignModalTitle').innerHTML = '<i class="fas fa-bullhorn"></i> Nueva Campaña';
+    document.getElementById('campaignForm').reset();
+    const modal = new bootstrap.Modal(document.getElementById('campaignModal'));
+    modal.show();
+}
+
+// Función para guardar campaña
+async function saveCampaign() {
+    const formData = {
+        name: document.getElementById('campaignName').value,
+        description: document.getElementById('campaignDescription').value,
+        template_id: document.getElementById('campaignTemplate').value,
+        target_status: document.getElementById('targetStatus').value,
+        target_source: document.getElementById('targetSource').value,
+        scheduled_date: document.getElementById('scheduledDate').value
+    };
+    
+    if (!formData.name || !formData.template_id) {
+        showNotification('Completa los campos requeridos', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/campaigns', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification('Campaña creada correctamente', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('campaignModal')).hide();
+            loadCampaigns();
+        } else {
+            showNotification(data.error || 'Error creando campaña', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para ver campaña
+function viewCampaign(campaignId) {
+    showNotification('Función en desarrollo', 'info');
+}
+
+// Función para ejecutar campaña
+function executeCampaign(campaignId) {
+    if (confirm('¿Ejecutar esta campaña ahora?')) {
+        showNotification('Ejecutando campaña...', 'info');
+        // Implementar lógica de ejecución
+        setTimeout(() => {
+            showNotification('Campaña ejecutada correctamente', 'success');
+        }, 2000);
+    }
+}
+
+// Función para editar campaña
+function editCampaign(campaignId) {
+    showNotification('Función en desarrollo', 'info');
+}
+
+// Función para eliminar campaña
+function deleteCampaign(campaignId) {
+    if (confirm('¿Eliminar esta campaña?')) {
+        showNotification('Campaña eliminada', 'success');
+        loadCampaigns();
+    }
+}
+</script>
+{% endblock %}

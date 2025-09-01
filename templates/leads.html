@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Leads - Nexa Lead Manager{% endblock %}
+{% block page_title %}Gestión de Leads{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-nexa" onclick="importLeads()">
+    <i class="fas fa-upload"></i>
+    Importar Leads
+</button>
+<button class="btn btn-nexa" onclick="createLead()">
+    <i class="fas fa-plus"></i>
+    Nuevo Lead
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Estado</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">Todos</option>
+                    <option value="nuevo">Nuevo</option>
+                    <option value="contactado">Contactado</option>
+                    <option value="interesado">Interesado</option>
+                    <option value="calificado">Calificado</option>
+                    <option value="convertido">Convertido</option>
+                    <option value="perdido">Perdido</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Fuente</label>
+                <select class="form-select" id="sourceFilter">
+                    <option value="">Todas</option>
+                    <option value="website">Website</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="referido">Referido</option>
+                    <option value="redes_sociales">Redes Sociales</option>
+                    <option value="evento">Evento</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="searchInput" placeholder="Nombre, teléfono, email...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-nexa w-100" onclick="filterLeads()">
+                    <i class="fas fa-search"></i>
+                    Filtrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de leads -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-users"></i>
+            Lista de Leads
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="leadsTable">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Empresa</th>
+                        <th>Estado</th>
+                        <th>Fuente</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="8" class="text-center">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        <nav aria-label="Paginación de leads">
+            <ul class="pagination justify-content-center" id="pagination">
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<!-- Modal para importar leads -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload"></i>
+                    Importar Leads
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="csvFile" class="form-label">Archivo CSV</label>
+                        <input type="file" class="form-control" id="csvFile" name="file" accept=".csv" required>
+                        <div class="form-text">
+                            El archivo debe contener columnas: phone_number, name, email, company
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="uploadLeads()">
+                    <i class="fas fa-upload"></i>
+                    Importar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+let totalPages = 1;
+
+// Cargar leads al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    loadLeads();
+});
+
+// Función para cargar leads
+async function loadLeads(page = 1) {
+    try {
+        const status = document.getElementById('statusFilter').value;
+        const source = document.getElementById('sourceFilter').value;
+        const search = document.getElementById('searchInput').value;
+        
+        let url = `/api/leads?page=${page}`;
+        if (status) url += `&status=${status}`;
+        if (source) url += `&source=${source}`;
+        if (search) url += `&search=${search}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateLeadsTable(data.leads);
+            updatePagination(data.current_page, data.pages, data.total);
+            currentPage = data.current_page;
+            totalPages = data.pages;
+        } else {
+            showNotification('Error cargando leads', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para actualizar tabla de leads
+function updateLeadsTable(leads) {
+    const tbody = document.querySelector('#leadsTable tbody');
+    
+    if (leads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No se encontraron leads</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = leads.map(lead => `
+        <tr>
+            <td>${lead.name || 'Sin nombre'}</td>
+            <td>${formatPhone(lead.phone_number)}</td>
+            <td>${lead.email || '-'}</td>
+            <td>${lead.company || '-'}</td>
+            <td><span class="status-badge status-${lead.status}">${lead.status}</span></td>
+            <td>${lead.source}</td>
+            <td>${formatDate(lead.created_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewLead(${lead.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="sendMessage(${lead.id})">
+                    <i class="fas fa-comment"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="editLead(${lead.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Función para actualizar paginación
+function updatePagination(currentPage, totalPages, total) {
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let paginationHTML = '';
+    
+    // Botón anterior
+    if (currentPage > 1) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadLeads(${currentPage - 1})">Anterior</a></li>`;
+    }
+    
+    // Páginas
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === currentPage) {
+            paginationHTML += `<li class="page-item active"><span class="page-link">${i}</span></li>`;
+        } else {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadLeads(${i})">${i}</a></li>`;
+        }
+    }
+    
+    // Botón siguiente
+    if (currentPage < totalPages) {
+        paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadLeads(${currentPage + 1})">Siguiente</a></li>`;
+    }
+    
+    pagination.innerHTML = paginationHTML;
+}
+
+// Función para filtrar leads
+function filterLeads() {
+    loadLeads(1);
+}
+
+// Función para importar leads
+function importLeads() {
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+
+// Función para subir archivo de leads
+async function uploadLeads() {
+    const formData = new FormData();
+    const fileInput = document.getElementById('csvFile');
+    
+    if (!fileInput.files[0]) {
+        showNotification('Selecciona un archivo CSV', 'warning');
+        return;
+    }
+    
+    formData.append('file', fileInput.files[0]);
+    
+    try {
+        showNotification('Importando leads...', 'info');
+        
+        const response = await fetch('/api/import-leads', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(`Importación completada: ${data.imported} importados, ${data.skipped} omitidos`, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+            loadLeads();
+        } else {
+            showNotification(data.error || 'Error en la importación', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para crear nuevo lead
+function createLead() {
+    // Implementar modal para crear lead
+    showNotification('Función en desarrollo', 'info');
+}
+
+// Función para ver lead
+function viewLead(leadId) {
+    window.location.href = `/leads?id=${leadId}`;
+}
+
+// Función para enviar mensaje
+function sendMessage(leadId) {
+    window.location.href = `/leads?id=${leadId}&action=message`;
+}
+
+// Función para editar lead
+function editLead(leadId) {
+    // Implementar modal para editar lead
+    showNotification('Función en desarrollo', 'info');
+}
+
+// Event listeners para filtros
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        filterLeads();
+    }
+});
+
+document.getElementById('statusFilter').addEventListener('change', filterLeads);
+document.getElementById('sourceFilter').addEventListener('change', filterLeads);
+</script>
+{% endblock %}

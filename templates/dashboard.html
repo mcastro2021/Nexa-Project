@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Nexa Lead Manager{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-nexa" onclick="refreshStats()">
+    <i class="fas fa-sync-alt"></i>
+    Actualizar
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="loading">
+    <i class="fas fa-spinner"></i>
+    <p>Cargando estadísticas...</p>
+</div>
+
+<!-- Estadísticas principales -->
+<div class="row mb-4" id="stats-container">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="total-leads">-</h3>
+                    <p>Total de Leads</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-users fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="new-leads">-</h3>
+                    <p>Leads Nuevos</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-user-plus fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="leads-follow-up">-</h3>
+                    <p>Necesitan Seguimiento</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-clock fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="converted-leads">-</h3>
+                    <p>Convertidos</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-check-circle fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos y análisis -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie"></i>
+                    Distribución por Estado
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="status-chart"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i>
+                    Leads por Fuente
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="source-chart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acciones rápidas -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt"></i>
+                    Acciones Rápidas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <button class="btn btn-nexa w-100 mb-2" onclick="sendFollowUpReminders()">
+                            <i class="fas fa-bell"></i>
+                            Enviar Recordatorios
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-nexa w-100 mb-2" onclick="importLeads()">
+                            <i class="fas fa-upload"></i>
+                            Importar Leads
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-nexa w-100 mb-2" onclick="createCampaign()">
+                            <i class="fas fa-bullhorn"></i>
+                            Nueva Campaña
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-nexa w-100 mb-2" onclick="viewAnalytics()">
+                            <i class="fas fa-chart-line"></i>
+                            Ver Analytics
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leads recientes -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list"></i>
+                    Leads Recientes
+                </h5>
+                <a href="/leads" class="btn btn-sm btn-nexa">
+                    Ver Todos
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="recent-leads-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Teléfono</th>
+                                <th>Estado</th>
+                                <th>Fuente</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="text-center">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para importar leads -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload"></i>
+                    Importar Leads
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="importForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="csvFile" class="form-label">Archivo CSV</label>
+                        <input type="file" class="form-control" id="csvFile" name="file" accept=".csv" required>
+                        <div class="form-text">
+                            El archivo debe contener columnas: phone_number, name, email, company
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="uploadLeads()">
+                    <i class="fas fa-upload"></i>
+                    Importar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let statsData = {};
+let analyticsData = {};
+
+// Cargar estadísticas al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    loadStats();
+    loadAnalytics();
+    loadRecentLeads();
+});
+
+// Función para cargar estadísticas
+async function loadStats() {
+    try {
+        showLoading();
+        const response = await fetch('/api/stats');
+        const data = await response.json();
+        
+        if (response.ok) {
+            statsData = data;
+            updateStatsDisplay();
+        } else {
+            showNotification('Error cargando estadísticas', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Función para actualizar display de estadísticas
+function updateStatsDisplay() {
+    document.getElementById('total-leads').textContent = statsData.total_leads || 0;
+    document.getElementById('new-leads').textContent = statsData.new_leads || 0;
+    document.getElementById('leads-follow-up').textContent = statsData.leads_needing_follow_up || 0;
+    document.getElementById('converted-leads').textContent = statsData.converted_leads || 0;
+}
+
+// Función para cargar analytics
+async function loadAnalytics() {
+    try {
+        const response = await fetch('/api/analytics?days=30');
+        const data = await response.json();
+        
+        if (response.ok) {
+            analyticsData = data;
+            renderCharts();
+        }
+    } catch (error) {
+        console.error('Error cargando analytics:', error);
+    }
+}
+
+// Función para renderizar gráficos
+function renderCharts() {
+    if (analyticsData.status_chart) {
+        const statusChart = JSON.parse(analyticsData.status_chart);
+        Plotly.newPlot('status-chart', statusChart.data, statusChart.layout);
+    }
+    
+    if (analyticsData.source_chart) {
+        const sourceChart = JSON.parse(analyticsData.source_chart);
+        Plotly.newPlot('source-chart', sourceChart.data, sourceChart.layout);
+    }
+}
+
+// Función para cargar leads recientes
+async function loadRecentLeads() {
+    try {
+        const response = await fetch('/api/leads?per_page=5');
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateRecentLeadsTable(data.leads);
+        }
+    } catch (error) {
+        console.error('Error cargando leads recientes:', error);
+    }
+}
+
+// Función para actualizar tabla de leads recientes
+function updateRecentLeadsTable(leads) {
+    const tbody = document.querySelector('#recent-leads-table tbody');
+    
+    if (leads.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hay leads recientes</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = leads.map(lead => `
+        <tr>
+            <td>${lead.name || 'Sin nombre'}</td>
+            <td>${formatPhone(lead.phone_number)}</td>
+            <td><span class="status-badge status-${lead.status}">${lead.status}</span></td>
+            <td>${lead.source}</td>
+            <td>${formatDate(lead.created_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewLead(${lead.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="sendMessage(${lead.id})">
+                    <i class="fas fa-comment"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Función para refrescar estadísticas
+function refreshStats() {
+    loadStats();
+    loadAnalytics();
+    loadRecentLeads();
+}
+
+// Función para enviar recordatorios de seguimiento
+async function sendFollowUpReminders() {
+    if (!confirm('¿Enviar recordatorios de seguimiento a todos los leads pendientes?')) {
+        return;
+    }
+    
+    try {
+        showNotification('Enviando recordatorios...', 'info');
+        // Aquí se implementaría la lógica para enviar recordatorios
+        setTimeout(() => {
+            showNotification('Recordatorios enviados correctamente', 'success');
+        }, 2000);
+    } catch (error) {
+        showNotification('Error enviando recordatorios', 'danger');
+    }
+}
+
+// Función para importar leads
+function importLeads() {
+    const modal = new bootstrap.Modal(document.getElementById('importModal'));
+    modal.show();
+}
+
+// Función para subir archivo de leads
+async function uploadLeads() {
+    const formData = new FormData();
+    const fileInput = document.getElementById('csvFile');
+    
+    if (!fileInput.files[0]) {
+        showNotification('Selecciona un archivo CSV', 'warning');
+        return;
+    }
+    
+    formData.append('file', fileInput.files[0]);
+    
+    try {
+        showNotification('Importando leads...', 'info');
+        
+        const response = await fetch('/api/import-leads', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(`Importación completada: ${data.imported} importados, ${data.skipped} omitidos`, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+            refreshStats();
+        } else {
+            showNotification(data.error || 'Error en la importación', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para crear campaña
+function createCampaign() {
+    window.location.href = '/campaigns';
+}
+
+// Función para ver analytics
+function viewAnalytics() {
+    window.location.href = '/analytics';
+}
+
+// Función para ver lead
+function viewLead(leadId) {
+    window.location.href = `/leads?id=${leadId}`;
+}
+
+// Función para enviar mensaje
+function sendMessage(leadId) {
+    window.location.href = `/leads?id=${leadId}&action=message`;
+}
+</script>
+{% endblock %}

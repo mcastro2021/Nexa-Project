@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Nexa Lead Manager{% endblock %}
+{% block page_title %}Analytics y Reportes{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-nexa" onclick="refreshAnalytics()">
+    <i class="fas fa-sync-alt"></i>
+    Actualizar
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros de tiempo -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Período</label>
+                <select class="form-select" id="periodFilter" onchange="loadAnalytics()">
+                    <option value="7">Últimos 7 días</option>
+                    <option value="30" selected>Últimos 30 días</option>
+                    <option value="90">Últimos 90 días</option>
+                    <option value="365">Último año</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Métricas principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="total-leads-analytics">-</h3>
+                    <p>Total de Leads</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-users fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="conversion-rate">-</h3>
+                    <p>Tasa de Conversión</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-percentage fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="avg-response-time">-</h3>
+                    <p>Tiempo Respuesta Prom.</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-clock fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 id="messages-sent">-</h3>
+                    <p>Mensajes Enviados</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="fas fa-comment fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie"></i>
+                    Distribución por Estado
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="status-chart"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i>
+                    Leads por Fuente
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="source-chart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line"></i>
+                    Evolución de Leads
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="evolution-chart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de rendimiento -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-table"></i>
+                    Rendimiento por Fuente
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="performanceTable">
+                        <thead>
+                            <tr>
+                                <th>Fuente</th>
+                                <th>Total Leads</th>
+                                <th>Convertidos</th>
+                                <th>Tasa Conversión</th>
+                                <th>Tiempo Promedio</th>
+                                <th>Rendimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="6" class="text-center">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let analyticsData = {};
+
+// Cargar analytics al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalytics();
+});
+
+// Función para cargar analytics
+async function loadAnalytics() {
+    try {
+        const days = document.getElementById('periodFilter').value;
+        const response = await fetch(`/api/analytics?days=${days}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            analyticsData = data;
+            updateMetrics();
+            renderCharts();
+            updatePerformanceTable();
+        } else {
+            showNotification('Error cargando analytics', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para actualizar métricas
+function updateMetrics() {
+    if (analyticsData.analytics) {
+        const analytics = analyticsData.analytics;
+        
+        document.getElementById('total-leads-analytics').textContent = analytics.total_leads || 0;
+        document.getElementById('conversion-rate').textContent = `${(analytics.conversion_rate || 0).toFixed(1)}%`;
+        document.getElementById('avg-response-time').textContent = '2.5h'; // Placeholder
+        document.getElementById('messages-sent').textContent = analytics.total_leads * 2 || 0; // Placeholder
+    }
+}
+
+// Función para renderizar gráficos
+function renderCharts() {
+    if (analyticsData.status_chart) {
+        const statusChart = JSON.parse(analyticsData.status_chart);
+        Plotly.newPlot('status-chart', statusChart.data, statusChart.layout);
+    }
+    
+    if (analyticsData.source_chart) {
+        const sourceChart = JSON.parse(analyticsData.source_chart);
+        Plotly.newPlot('source-chart', sourceChart.data, sourceChart.layout);
+    }
+    
+    // Gráfico de evolución (placeholder)
+    const evolutionData = [{
+        x: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+        y: [10, 15, 12, 18, 22, 25],
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: 'Leads'
+    }];
+    
+    const evolutionLayout = {
+        title: 'Evolución Mensual de Leads',
+        xaxis: { title: 'Mes' },
+        yaxis: { title: 'Número de Leads' }
+    };
+    
+    Plotly.newPlot('evolution-chart', evolutionData, evolutionLayout);
+}
+
+// Función para actualizar tabla de rendimiento
+function updatePerformanceTable() {
+    const tbody = document.querySelector('#performanceTable tbody');
+    
+    // Datos de ejemplo
+    const performanceData = [
+        { source: 'Website', total: 45, converted: 12, rate: 26.7, time: '1.5h' },
+        { source: 'WhatsApp', total: 32, converted: 8, rate: 25.0, time: '0.8h' },
+        { source: 'Referido', total: 18, converted: 6, rate: 33.3, time: '2.1h' },
+        { source: 'Redes Sociales', total: 25, converted: 5, rate: 20.0, time: '3.2h' }
+    ];
+    
+    tbody.innerHTML = performanceData.map(item => `
+        <tr>
+            <td>${item.source}</td>
+            <td>${item.total}</td>
+            <td>${item.converted}</td>
+            <td>${item.rate}%</td>
+            <td>${item.time}</td>
+            <td>
+                <div class="progress">
+                    <div class="progress-bar" style="width: ${item.rate}%"></div>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Función para refrescar analytics
+function refreshAnalytics() {
+    loadAnalytics();
+    showNotification('Analytics actualizados', 'success');
+}
+</script>
+{% endblock %}

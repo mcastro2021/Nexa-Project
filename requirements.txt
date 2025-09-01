@@ -1,6 +1,16 @@
 Flask==2.3.3
 twilio==8.10.0
-openai==0.28.1
+openai==1.102.0
 python-dotenv==1.0.0
 gunicorn==21.2.0
 Werkzeug==2.3.7
+Flask-SQLAlchemy==3.0.5
+Flask-Login==0.6.3
+Flask-WTF==1.1.1
+WTForms==3.0.1
+requests==2.31.0
+pandas==2.0.3
+plotly==5.15.0
+kaleido==0.2.1
+APScheduler==3.10.4
+email-validator==2.0.0
