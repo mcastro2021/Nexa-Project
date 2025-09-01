@@ -4,7 +4,7 @@ services:
     env: python
     plan: starter
     autoDeploy: true
-    repo: https://github.com/yourusername/Nexa-Project.git
+    repo: https://github.com/mcastro2021/Nexa-Project.git
     branch: main
     buildCommand: chmod +x build.sh && ./build.sh
     startCommand: gunicorn app:app
