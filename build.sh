@@ -18,4 +18,8 @@ python -c "import flask; print(f'Flask version: {flask.__version__}')"
 python -c "import twilio; print('Twilio instalado correctamente')"
 python -c "import openai; print('OpenAI instalado correctamente')"
 
+# Configurar entorno para Render
+echo "🔧 Configurando entorno para Render..."
+python init_render.py
+
 echo "🎉 Build completado exitosamente!"

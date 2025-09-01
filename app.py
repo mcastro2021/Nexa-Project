@@ -19,8 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('nexa_bot.log'),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Solo stdout para Render
     ]
 )
 logger = logging.getLogger(__name__)

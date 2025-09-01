@@ -4,6 +4,7 @@ Dashboard Web para Nexa Lead Manager
 Interfaz moderna para gestión de leads y campañas de WhatsApp
 """
 
+import logging
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -14,6 +15,14 @@ from datetime import datetime, timedelta
 from models import db, User, Lead, LeadStatus, LeadSource, Message, MessageTemplate, Campaign, CampaignResult, Interaction
 from lead_manager import lead_manager
 import os
+
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
 
 # Configuración de la aplicación
 app = Flask(__name__)
