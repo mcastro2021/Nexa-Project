@@ -25,9 +25,11 @@ def setup_database():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Verificar si la tabla message existe y tiene las columnas correctas
+        # Verificar si la tabla message existe
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message'")
         if cursor.fetchone():
+            print("📝 Tabla 'message' existe, verificando estructura...")
+            
             # Verificar columnas de la tabla message
             cursor.execute("PRAGMA table_info(message)")
             columns = [column[1] for column in cursor.fetchall()]
@@ -54,19 +56,32 @@ def setup_database():
                 try:
                     if column in ['scheduled_at', 'sent_at', 'delivered_at', 'read_at']:
                         cursor.execute(f"ALTER TABLE message ADD COLUMN {column} DATETIME")
+                        print(f"✅ Columna '{column}' agregada exitosamente")
                     elif column == 'message_type':
                         cursor.execute(f"ALTER TABLE message ADD COLUMN {column} VARCHAR(20) DEFAULT 'outbound'")
+                        print(f"✅ Columna '{column}' agregada exitosamente")
                     elif column == 'status':
                         cursor.execute(f"ALTER TABLE message ADD COLUMN {column} VARCHAR(20) DEFAULT 'pending'")
-                    
-                    print(f"✅ Columna '{column}' agregada exitosamente")
+                        print(f"✅ Columna '{column}' agregada exitosamente")
                 except sqlite3.OperationalError as e:
                     if "duplicate column name" in str(e):
                         print(f"ℹ️ Columna '{column}' ya existe")
                     else:
                         print(f"❌ Error agregando columna '{column}': {e}")
+                        # Si hay error, recrear la tabla
+                        print("🔄 Recreando tabla 'message'...")
+                        recreate_message_table(cursor)
+                        break
+        else:
+            # Crear tabla message si no existe
+            print("📝 Creando tabla 'message'...")
+            create_message_table(cursor)
+        
+        # Verificar estructura de la tabla lead
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='lead'")
+        if cursor.fetchone():
+            print("📝 Tabla 'lead' existe, verificando estructura...")
             
-            # Verificar estructura de la tabla lead
             cursor.execute("PRAGMA table_info(lead)")
             lead_columns = [column[1] for column in cursor.fetchall()]
             
@@ -94,107 +109,32 @@ def setup_database():
                 except sqlite3.OperationalError as e:
                     print(f"ℹ️ Columna 'last_contact_date' ya existe o no se pudo agregar: {e}")
         else:
-            # Crear tabla message si no existe
-            print("📝 Creando tabla 'message'...")
-            cursor.execute("""
-                CREATE TABLE message (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    lead_id INTEGER NOT NULL,
-                    content TEXT NOT NULL,
-                    message_type VARCHAR(20) DEFAULT 'outbound',
-                    status VARCHAR(20) DEFAULT 'pending',
-                    scheduled_at DATETIME,
-                    sent_at DATETIME,
-                    delivered_at DATETIME,
-                    read_at DATETIME,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (lead_id) REFERENCES lead (id)
-                )
-            """)
-            print("✅ Tabla 'message' creada exitosamente")
+            print("📝 Creando tabla 'lead'...")
+            create_lead_table(cursor)
         
         # Verificar si existe la tabla message_template
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='message_template'")
         if not cursor.fetchone():
             print("📝 Creando tabla 'message_template'...")
-            cursor.execute("""
-                CREATE TABLE message_template (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(100) NOT NULL,
-                    category VARCHAR(50) NOT NULL,
-                    content TEXT NOT NULL,
-                    variables TEXT,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Insertar plantillas por defecto
-            cursor.execute("""
-                INSERT INTO message_template (name, category, content, is_active) VALUES 
-                ('Bienvenida', 'welcome', '¡Hola {name}! Gracias por tu interés en Nexa Constructora. ¿En qué proyecto estás pensando?', TRUE),
-                ('Seguimiento', 'follow_up', 'Hola {name}, ¿cómo estás? Te escribo para hacer seguimiento de tu interés en nuestros servicios.', TRUE),
-                ('Oferta', 'offer', '¡{name}! Tenemos una oferta especial para ti: 15% de descuento en proyectos de construcción.', TRUE)
-            """)
-            print("✅ Tabla 'message_template' creada con plantillas por defecto")
+            create_message_template_table(cursor)
         
         # Verificar si existe la tabla campaign
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='campaign'")
         if not cursor.fetchone():
             print("📝 Creando tabla 'campaign'...")
-            cursor.execute("""
-                CREATE TABLE campaign (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(100) NOT NULL,
-                    description TEXT,
-                    template_id INTEGER,
-                    target_status VARCHAR(20),
-                    target_source VARCHAR(20),
-                    scheduled_date DATETIME,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (template_id) REFERENCES message_template (id)
-                )
-            """)
-            print("✅ Tabla 'campaign' creada exitosamente")
+            create_campaign_table(cursor)
         
         # Verificar si existe la tabla campaign_result
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='campaign_result'")
         if not cursor.fetchone():
             print("📝 Creando tabla 'campaign_result'...")
-            cursor.execute("""
-                CREATE TABLE campaign_result (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    campaign_id INTEGER NOT NULL,
-                    lead_id INTEGER NOT NULL,
-                    message_id INTEGER NOT NULL,
-                    status VARCHAR(20) DEFAULT 'pending',
-                    sent_at DATETIME,
-                    delivered_at DATETIME,
-                    read_at DATETIME,
-                    FOREIGN KEY (campaign_id) REFERENCES campaign (id),
-                    FOREIGN KEY (lead_id) REFERENCES lead (id),
-                    FOREIGN KEY (message_id) REFERENCES message (id)
-                )
-            """)
-            print("✅ Tabla 'campaign_result' creada exitosamente")
+            create_campaign_result_table(cursor)
         
         # Verificar si existe la tabla interaction
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='interaction'")
         if not cursor.fetchone():
             print("📝 Creando tabla 'interaction'...")
-            cursor.execute("""
-                CREATE TABLE interaction (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    lead_id INTEGER NOT NULL,
-                    interaction_type VARCHAR(50) NOT NULL,
-                    description TEXT,
-                    outcome VARCHAR(100),
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (lead_id) REFERENCES lead (id)
-                )
-            """)
-            print("✅ Tabla 'interaction' creada exitosamente")
+            create_interaction_table(cursor)
         
         # Commit de cambios
         conn.commit()
@@ -214,6 +154,73 @@ def setup_database():
     finally:
         if 'conn' in locals():
             conn.close()
+
+def recreate_message_table(cursor):
+    """Recrear la tabla message con la estructura correcta"""
+    try:
+        # Eliminar tabla existente
+        cursor.execute("DROP TABLE IF EXISTS message")
+        
+        # Crear nueva tabla
+        cursor.execute("""
+            CREATE TABLE message (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lead_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                message_type VARCHAR(20) DEFAULT 'outbound',
+                status VARCHAR(20) DEFAULT 'pending',
+                scheduled_at DATETIME,
+                sent_at DATETIME,
+                delivered_at DATETIME,
+                read_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES lead (id)
+            )
+        """)
+        print("✅ Tabla 'message' recreada exitosamente")
+        
+    except Exception as e:
+        print(f"❌ Error recreando tabla 'message': {e}")
+
+def create_message_table(cursor):
+    """Crear tabla message"""
+    cursor.execute("""
+        CREATE TABLE message (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            message_type VARCHAR(20) DEFAULT 'outbound',
+            status VARCHAR(20) DEFAULT 'pending',
+            scheduled_at DATETIME,
+            sent_at DATETIME,
+            delivered_at DATETIME,
+            read_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (lead_id) REFERENCES lead (id)
+        )
+    """)
+    print("✅ Tabla 'message' creada exitosamente")
+
+def create_lead_table(cursor):
+    """Crear tabla lead"""
+    cursor.execute("""
+        CREATE TABLE lead (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(100) NOT NULL,
+            phone_number VARCHAR(20) UNIQUE NOT NULL,
+            email VARCHAR(120),
+            company VARCHAR(100),
+            status VARCHAR(20) DEFAULT 'NUEVO',
+            source VARCHAR(20) DEFAULT 'OTRO',
+            interest_level INTEGER DEFAULT 3,
+            notes TEXT,
+            next_follow_up DATETIME,
+            last_contact_date DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    print("✅ Tabla 'lead' creada exitosamente")
 
 def setup_environment():
     """Configurar variables de entorno por defecto"""

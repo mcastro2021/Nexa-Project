@@ -357,7 +357,7 @@ def create_campaign():
 @app.route('/api/templates')
 @login_required
 def get_templates():
-    """Obtener plantillas de mensajes"""
+    """Obtener lista de plantillas de mensaje"""
     try:
         templates = MessageTemplate.query.filter_by(is_active=True).all()
         
@@ -367,8 +367,32 @@ def get_templates():
                 'name': template.name,
                 'category': template.category,
                 'content': template.content,
-                'variables': template.variables
+                'variables': template.variables,
+                'is_active': template.is_active,
+                'created_at': template.created_at.isoformat()
             } for template in templates]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/templates/<int:template_id>')
+@login_required
+def get_template(template_id):
+    """Obtener una plantilla específica"""
+    try:
+        template = MessageTemplate.query.get_or_404(template_id)
+        
+        return jsonify({
+            'template': {
+                'id': template.id,
+                'name': template.name,
+                'category': template.category,
+                'content': template.content,
+                'variables': template.variables,
+                'is_active': template.is_active,
+                'created_at': template.created_at.isoformat()
+            }
         })
         
     except Exception as e:

@@ -237,6 +237,7 @@ function createTemplate() {
     document.getElementById('templateModalTitle').innerHTML = '<i class="fas fa-file-alt"></i> Nueva Plantilla';
     document.getElementById('templateForm').reset();
     document.getElementById('templateActive').checked = true;
+    document.getElementById('templateForm').removeAttribute('data-template-id'); // Limpiar ID al crear
     const modal = new bootstrap.Modal(document.getElementById('templateModal'));
     modal.show();
 }
@@ -257,8 +258,12 @@ async function saveTemplate() {
     }
     
     try {
-        const response = await fetch('/api/templates', {
-            method: 'POST',
+        const templateId = document.getElementById('templateForm').getAttribute('data-template-id');
+        const url = templateId ? `/api/templates/${templateId}` : '/api/templates';
+        const method = templateId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -298,15 +303,52 @@ async function previewTemplate(templateId) {
 }
 
 // Función para editar plantilla
-function editTemplate(templateId) {
-    showNotification('Función en desarrollo', 'info');
+async function editTemplate(templateId) {
+    try {
+        const response = await fetch(`/api/templates/${templateId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Llenar el formulario con los datos de la plantilla
+            document.getElementById('templateModalTitle').innerHTML = '<i class="fas fa-edit"></i> Editar Plantilla';
+            document.getElementById('templateName').value = data.template.name;
+            document.getElementById('templateCategory').value = data.template.category;
+            document.getElementById('templateContent').value = data.template.content;
+            document.getElementById('templateVariables').value = data.template.variables || '';
+            document.getElementById('templateActive').checked = data.template.is_active;
+            
+            // Agregar el ID de la plantilla al formulario para saber que es una edición
+            document.getElementById('templateForm').setAttribute('data-template-id', templateId);
+            
+            const modal = new bootstrap.Modal(document.getElementById('templateModal'));
+            modal.show();
+        } else {
+            showNotification('Error cargando plantilla', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
 }
 
 // Función para eliminar plantilla
-function deleteTemplate(templateId) {
-    if (confirm('¿Eliminar esta plantilla?')) {
-        showNotification('Plantilla eliminada', 'success');
-        loadTemplates();
+async function deleteTemplate(templateId) {
+    if (confirm('¿Estás seguro de que quieres eliminar esta plantilla? Esta acción no se puede deshacer.')) {
+        try {
+            const response = await fetch(`/api/templates/${templateId}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showNotification('Plantilla eliminada correctamente', 'success');
+                loadTemplates();
+            } else {
+                showNotification(data.error || 'Error eliminando plantilla', 'danger');
+            }
+        } catch (error) {
+            showNotification('Error de conexión', 'danger');
+        }
     }
 }
 
@@ -318,5 +360,27 @@ document.getElementById('templateContent').addEventListener('input', function() 
         previewContent.textContent = content;
     }
 });
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'info') {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Agregar al body
+    document.body.appendChild(notification);
+    
+    // Auto-eliminar después de 5 segundos
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
 </script>
 {% endblock %}
