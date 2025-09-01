@@ -27,8 +27,37 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
+    first_name = db.Column(db.String(50))
+    last_name = db.Column(db.String(50))
+    phone_number = db.Column(db.String(20))
+    role = db.Column(db.String(20), default='user')  # admin, manager, user
+    is_active = db.Column(db.Boolean, default=True)
+    last_login = db.Column(db.DateTime)
+    password_changed_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relaciones
+    created_leads = db.relationship('Lead', backref='created_by', lazy=True, foreign_keys='Lead.created_by_id')
+    assigned_leads = db.relationship('Lead', backref='assigned_to', lazy=True, foreign_keys='Lead.assigned_to_id')
+    
+    def get_full_name(self):
+        """Obtener nombre completo del usuario"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.username
+    
+    def can_manage_users(self):
+        """Verificar si el usuario puede gestionar otros usuarios"""
+        return self.role in ['admin', 'manager']
+    
+    def can_delete_leads(self):
+        """Verificar si el usuario puede eliminar leads"""
+        return self.role in ['admin', 'manager']
+    
+    def can_manage_campaigns(self):
+        """Verificar si el usuario puede gestionar campañas"""
+        return self.role in ['admin', 'manager']
 
 class Lead(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -42,12 +71,40 @@ class Lead(db.Model):
     notes = db.Column(db.Text)
     next_follow_up = db.Column(db.DateTime)
     last_contact_date = db.Column(db.DateTime)
+    priority = db.Column(db.String(20), default='medium')  # low, medium, high, urgent
+    estimated_value = db.Column(db.Decimal(10, 2))  # Valor estimado del proyecto
+    project_type = db.Column(db.String(100))  # Tipo de proyecto
+    location = db.Column(db.String(200))  # Ubicación del proyecto
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
     interactions = db.relationship('Interaction', backref='lead', lazy=True, cascade='all, delete-orphan')
     messages = db.relationship('Message', backref='lead', lazy=True, cascade='all, delete-orphan')
+    
+    def get_priority_color(self):
+        """Obtener color de prioridad para la UI"""
+        colors = {
+            'low': 'success',
+            'medium': 'warning',
+            'high': 'danger',
+            'urgent': 'dark'
+        }
+        return colors.get(self.priority, 'secondary')
+    
+    def days_since_contact(self):
+        """Calcular días desde el último contacto"""
+        if self.last_contact_date:
+            return (datetime.utcnow() - self.last_contact_date).days
+        return None
+    
+    def needs_follow_up(self):
+        """Verificar si el lead necesita seguimiento"""
+        if not self.next_follow_up:
+            return True
+        return datetime.utcnow() >= self.next_follow_up
 
 class Interaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)

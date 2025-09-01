@@ -118,6 +118,76 @@ def setup_database():
             print("📝 Creando tabla 'message_template'...")
             create_message_template_table(cursor)
         
+        # Verificar si existe la tabla user
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user'")
+        if not cursor.fetchone():
+            print("📝 Creando tabla 'user'...")
+            create_user_table(cursor)
+        else:
+            print("📝 Tabla 'user' existe, verificando estructura...")
+            
+            cursor.execute("PRAGMA table_info(user)")
+            user_columns = [column[1] for column in cursor.fetchall()]
+            
+            print(f"📊 Columnas actuales en tabla 'user': {user_columns}")
+            
+            # Agregar columnas faltantes en user
+            if 'first_name' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN first_name VARCHAR(50)")
+                    print("✅ Columna 'first_name' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'first_name' ya existe o no se pudo agregar: {e}")
+            
+            if 'last_name' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN last_name VARCHAR(50)")
+                    print("✅ Columna 'last_name' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'last_name' ya existe o no se pudo agregar: {e}")
+            
+            if 'phone_number' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN phone_number VARCHAR(20)")
+                    print("✅ Columna 'phone_number' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'phone_number' ya existe o no se pudo agregar: {e}")
+            
+            if 'role' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN role VARCHAR(20) DEFAULT 'user'")
+                    print("✅ Columna 'role' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'role' ya existe o no se pudo agregar: {e}")
+            
+            if 'is_active' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT TRUE")
+                    print("✅ Columna 'is_active' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'is_active' ya existe o no se pudo agregar: {e}")
+            
+            if 'last_login' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN last_login DATETIME")
+                    print("✅ Columna 'last_login' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'last_login' ya existe o no se pudo agregar: {e}")
+            
+            if 'password_changed_at' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN password_changed_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+                    print("✅ Columna 'password_changed_at' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'password_changed_at' ya existe o no se pudo agregar: {e}")
+            
+            if 'updated_at' not in user_columns:
+                try:
+                    cursor.execute("ALTER TABLE user ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+                    print("✅ Columna 'updated_at' agregada exitosamente")
+                except sqlite3.OperationalError as e:
+                    print(f"ℹ️ Columna 'updated_at' ya existe o no se pudo agregar: {e}")
+        
         # Verificar si existe la tabla campaign
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='campaign'")
         if not cursor.fetchone():
@@ -216,11 +286,70 @@ def create_lead_table(cursor):
             notes TEXT,
             next_follow_up DATETIME,
             last_contact_date DATETIME,
+            priority VARCHAR(20) DEFAULT 'medium',
+            estimated_value DECIMAL(10, 2),
+            project_type VARCHAR(100),
+            location VARCHAR(200),
+            created_by_id INTEGER,
+            assigned_to_id INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
     print("✅ Tabla 'lead' creada exitosamente")
+
+def create_user_table(cursor):
+    """Crear tabla user"""
+    cursor.execute("""
+        CREATE TABLE user (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username VARCHAR(80) UNIQUE NOT NULL,
+            email VARCHAR(120) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            first_name VARCHAR(50),
+            last_name VARCHAR(50),
+            phone_number VARCHAR(20),
+            role VARCHAR(20) DEFAULT 'user',
+            is_active BOOLEAN DEFAULT TRUE,
+            last_login DATETIME,
+            password_changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    print("✅ Tabla 'user' creada exitosamente")
+    
+    # Crear usuario administrador por defecto
+    from werkzeug.security import generate_password_hash
+    admin_password = generate_password_hash('admin123')
+    cursor.execute("""
+        INSERT INTO user (username, email, password_hash, first_name, last_name, role, is_active)
+        VALUES ('admin', 'admin@nexa.com', ?, 'Administrador', 'Sistema', 'admin', TRUE)
+    """, (admin_password,))
+    print("✅ Usuario administrador creado: admin/admin123")
+
+def create_message_template_table(cursor):
+    """Crear tabla message_template"""
+    cursor.execute("""
+        CREATE TABLE message_template (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name VARCHAR(100) NOT NULL,
+            category VARCHAR(50) NOT NULL,
+            content TEXT NOT NULL,
+            variables TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    # Insertar plantillas por defecto
+    cursor.execute("""
+        INSERT INTO message_template (name, category, content, is_active) VALUES 
+        ('Bienvenida', 'welcome', '¡Hola {name}! Gracias por tu interés en Nexa Constructora. ¿En qué proyecto estás pensando?', TRUE),
+        ('Seguimiento', 'follow_up', 'Hola {name}, ¿cómo estás? Te escribo para hacer seguimiento de tu interés en nuestros servicios.', TRUE),
+        ('Oferta', 'offer', '¡{name}! Tenemos una oferta especial para ti: 15% de descuento en proyectos de construcción.', TRUE)
+    """)
+    print("✅ Tabla 'message_template' creada con plantillas por defecto")
 
 def setup_environment():
     """Configurar variables de entorno por defecto"""

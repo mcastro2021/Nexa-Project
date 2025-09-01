@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+
+{% block title %}Usuarios - Nexa Lead Manager{% endblock %}
+{% block page_title %}Gestión de Usuarios{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-nexa" onclick="createUser()">
+    <i class="fas fa-user-plus"></i>
+    Nuevo Usuario
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Lista de usuarios -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-users"></i>
+            Usuarios del Sistema
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Último Acceso</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="7" class="text-center">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear/editar usuario -->
+<div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userModalTitle">
+                    <i class="fas fa-user-plus"></i>
+                    Nuevo Usuario
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Nombre de Usuario *</label>
+                                <input type="text" class="form-control" id="username" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email *</label>
+                                <input type="email" class="form-control" id="email" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="firstName" class="form-label">Nombre</label>
+                                <input type="text" class="form-control" id="firstName">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="lastName" class="form-label">Apellido</label>
+                                <input type="text" class="form-control" id="lastName">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phoneNumber" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="phoneNumber">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Rol *</label>
+                                <select class="form-select" id="role" required>
+                                    <option value="user">Usuario</option>
+                                    <option value="manager">Manager</option>
+                                    <option value="admin">Administrador</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña *</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="form-text">
+                            Mínimo 8 caracteres
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isActive" checked>
+                            <label class="form-check-label" for="isActive">
+                                Usuario activo
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="saveUser()">
+                    <i class="fas fa-save"></i>
+                    Guardar Usuario
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para cambiar contraseña -->
+<div class="modal fade" id="passwordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-key"></i>
+                    Cambiar Contraseña
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="passwordForm">
+                    <div class="mb-3" id="currentPasswordDiv">
+                        <label for="currentPassword" class="form-label">Contraseña Actual</label>
+                        <input type="password" class="form-control" id="currentPassword">
+                        <div class="form-text">
+                            Solo si cambias tu propia contraseña
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">Nueva Contraseña *</label>
+                        <input type="password" class="form-control" id="newPassword" required>
+                        <div class="form-text">
+                            Mínimo 8 caracteres
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirmar Contraseña *</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-nexa" onclick="changePassword()">
+                    <i class="fas fa-key"></i>
+                    Cambiar Contraseña
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentUserId = null;
+
+// Cargar usuarios al iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+});
+
+// Función para cargar usuarios
+async function loadUsers() {
+    try {
+        const response = await fetch('/api/users');
+        const data = await response.json();
+        
+        if (response.ok) {
+            updateUsersTable(data.users);
+        } else {
+            showNotification('Error cargando usuarios', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para actualizar tabla de usuarios
+function updateUsersTable(users) {
+    const tbody = document.querySelector('#usersTable tbody');
+    
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hay usuarios registrados</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = users.map(user => `
+        <tr>
+            <td>
+                <strong>${user.username}</strong>
+            </td>
+            <td>${user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : '-'}</td>
+            <td>${user.email}</td>
+            <td>
+                <span class="badge bg-${getRoleColor(user.role)}">${getRoleLabel(user.role)}</span>
+            </td>
+            <td>
+                <span class="badge ${user.is_active ? 'bg-success' : 'bg-secondary'}">
+                    ${user.is_active ? 'Activo' : 'Inactivo'}
+                </span>
+            </td>
+            <td>${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Nunca'}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-warning" onclick="editUser(${user.id})">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-info" onclick="changeUserPassword(${user.id})">
+                    <i class="fas fa-key"></i>
+                </button>
+                ${user.id !== {{ current_user.id }} ? `
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteUser(${user.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+                ` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Función para obtener color del rol
+function getRoleColor(role) {
+    const colors = {
+        'admin': 'danger',
+        'manager': 'warning',
+        'user': 'info'
+    };
+    return colors[role] || 'secondary';
+}
+
+// Función para obtener etiqueta del rol
+function getRoleLabel(role) {
+    const labels = {
+        'admin': 'Administrador',
+        'manager': 'Manager',
+        'user': 'Usuario'
+    };
+    return labels[role] || role;
+}
+
+// Función para crear usuario
+function createUser() {
+    document.getElementById('userModalTitle').innerHTML = '<i class="fas fa-user-plus"></i> Nuevo Usuario';
+    document.getElementById('userForm').reset();
+    document.getElementById('isActive').checked = true;
+    document.getElementById('userForm').removeAttribute('data-user-id');
+    const modal = new bootstrap.Modal(document.getElementById('userModal'));
+    modal.show();
+}
+
+// Función para guardar usuario
+async function saveUser() {
+    const formData = {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        first_name: document.getElementById('firstName').value,
+        last_name: document.getElementById('lastName').value,
+        phone_number: document.getElementById('phoneNumber').value,
+        role: document.getElementById('role').value,
+        password: document.getElementById('password').value,
+        is_active: document.getElementById('isActive').checked
+    };
+    
+    if (!formData.username || !formData.email || !formData.password) {
+        showNotification('Completa los campos requeridos', 'warning');
+        return;
+    }
+    
+    if (formData.password.length < 8) {
+        showNotification('La contraseña debe tener al menos 8 caracteres', 'warning');
+        return;
+    }
+    
+    try {
+        const userId = document.getElementById('userForm').getAttribute('data-user-id');
+        const url = userId ? `/api/users/${userId}` : '/api/users';
+        const method = userId ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('userModal')).hide();
+            loadUsers();
+        } else {
+            showNotification(data.error || 'Error guardando usuario', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para editar usuario
+async function editUser(userId) {
+    try {
+        const response = await fetch(`/api/users/${userId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            const user = data.user;
+            
+            // Llenar el formulario
+            document.getElementById('userModalTitle').innerHTML = '<i class="fas fa-edit"></i> Editar Usuario';
+            document.getElementById('username').value = user.username;
+            document.getElementById('email').value = user.email;
+            document.getElementById('firstName').value = user.first_name || '';
+            document.getElementById('lastName').value = user.last_name || '';
+            document.getElementById('phoneNumber').value = user.phone_number || '';
+            document.getElementById('role').value = user.role;
+            document.getElementById('isActive').checked = user.is_active;
+            document.getElementById('password').required = false;
+            document.getElementById('password').placeholder = 'Dejar en blanco para no cambiar';
+            
+            // Marcar como edición
+            document.getElementById('userForm').setAttribute('data-user-id', userId);
+            
+            const modal = new bootstrap.Modal(document.getElementById('userModal'));
+            modal.show();
+        } else {
+            showNotification('Error cargando usuario', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para cambiar contraseña
+function changeUserPassword(userId) {
+    currentUserId = userId;
+    
+    // Mostrar/ocultar campo de contraseña actual según si es el propio usuario
+    const currentPasswordDiv = document.getElementById('currentPasswordDiv');
+    if (userId === {{ current_user.id }}) {
+        currentPasswordDiv.style.display = 'block';
+        document.getElementById('currentPassword').required = true;
+    } else {
+        currentPasswordDiv.style.display = 'none';
+        document.getElementById('currentPassword').required = false;
+    }
+    
+    // Limpiar formulario
+    document.getElementById('passwordForm').reset();
+    
+    const modal = new bootstrap.Modal(document.getElementById('passwordModal'));
+    modal.show();
+}
+
+// Función para cambiar contraseña
+async function changePassword() {
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (!newPassword || !confirmPassword) {
+        showNotification('Completa todos los campos', 'warning');
+        return;
+    }
+    
+    if (newPassword.length < 8) {
+        showNotification('La contraseña debe tener al menos 8 caracteres', 'warning');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        showNotification('Las contraseñas no coinciden', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/users/${currentUserId}/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showNotification(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('passwordModal')).hide();
+        } else {
+            showNotification(data.error || 'Error cambiando contraseña', 'danger');
+        }
+    } catch (error) {
+        showNotification('Error de conexión', 'danger');
+    }
+}
+
+// Función para eliminar usuario
+async function deleteUser(userId) {
+    if (confirm('¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.')) {
+        try {
+            const response = await fetch(`/api/users/${userId}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showNotification(data.message, 'success');
+                loadUsers();
+            } else {
+                showNotification(data.error || 'Error eliminando usuario', 'danger');
+            }
+        } catch (error) {
+            showNotification('Error de conexión', 'danger');
+        }
+    }
+}
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

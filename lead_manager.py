@@ -15,6 +15,7 @@ import re
 from models import db, Lead, LeadStatus, LeadSource, Message, MessageTemplate, Campaign, CampaignResult, Interaction
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
+from models import User # Added missing import for User
 
 logger = logging.getLogger(__name__)
 
@@ -176,36 +177,36 @@ Equipo Nexa Constructora"""
             logger.error(f"Error enviando mensaje de seguimiento: {e}")
             return False
     
-    def send_whatsapp_message(self, phone_number: str, message: str, lead_id: int = None) -> bool:
-        """Enviar mensaje de WhatsApp"""
+    def send_whatsapp_message(self, to_number: str, message_content: str, 
+                              template_name: str = None, variables: dict = None,
+                              scheduled_time: datetime = None) -> bool:
+        """Enviar mensaje de WhatsApp usando Twilio"""
         try:
             if not self.twilio_client:
-                logger.error("Cliente de Twilio no configurado")
+                logger.warning("Twilio no configurado")
                 return False
             
             # Formatear número de teléfono
-            formatted_number = self.format_phone_number(phone_number)
+            formatted_number = self._format_phone_number(to_number)
+            
+            # Procesar variables del mensaje
+            if variables:
+                message_content = self._process_message_variables(message_content, variables)
             
             # Enviar mensaje
-            message_obj = self.twilio_client.messages.create(
-                body=message,
-                from_=self.whatsapp_from,
+            message = self.twilio_client.messages.create(
+                from_=f"whatsapp:{self.whatsapp_from}",
+                body=message_content,
                 to=f"whatsapp:{formatted_number}"
             )
             
-            # Guardar mensaje en base de datos
-            if lead_id:
-                db_message = Message(
-                    lead_id=lead_id,
-                    message_type='sent',
-                    content=message,
-                    status='sent',
-                    twilio_sid=message_obj.sid
-                )
-                db.session.add(db_message)
-                db.session.commit()
+            logger.info(f"Mensaje enviado: {message.sid} a {formatted_number}")
             
-            logger.info(f"Mensaje enviado a {formatted_number}: {message_obj.sid}")
+            # Si hay programación, actualizar estado
+            if scheduled_time:
+                # Aquí se actualizaría el estado en la base de datos
+                pass
+            
             return True
             
         except TwilioException as e:
@@ -215,20 +216,107 @@ Equipo Nexa Constructora"""
             logger.error(f"Error enviando mensaje: {e}")
             return False
     
-    def format_phone_number(self, phone_number: str) -> str:
-        """Formatear número de teléfono para Twilio"""
+    def send_bulk_whatsapp(self, leads: List[Lead], template_name: str, 
+                           variables: dict = None, scheduled_time: datetime = None) -> Dict:
+        """Enviar mensajes masivos de WhatsApp"""
+        results = {
+            'total': len(leads),
+            'sent': 0,
+            'failed': 0,
+            'errors': []
+        }
+        
+        for lead in leads:
+            try:
+                # Personalizar mensaje para cada lead
+                lead_variables = {
+                    'name': lead.name or 'Cliente',
+                    'company': lead.company or 'Empresa',
+                    'phone': lead.phone_number,
+                    'email': lead.email or 'No especificado'
+                }
+                
+                if variables:
+                    lead_variables.update(variables)
+                
+                # Obtener plantilla
+                template = MessageTemplate.query.filter_by(name=template_name, is_active=True).first()
+                if not template:
+                    results['errors'].append(f"Plantilla '{template_name}' no encontrada para {lead.name}")
+                    results['failed'] += 1
+                    continue
+                
+                # Enviar mensaje
+                success = self.send_whatsapp_message(
+                    lead.phone_number,
+                    template.content,
+                    template_name,
+                    lead_variables
+                )
+                
+                if success:
+                    results['sent'] += 1
+                    
+                    # Crear registro de mensaje
+                    message = Message(
+                        lead_id=lead.id,
+                        content=template.content,
+                        message_type='outbound',
+                        status='sent',
+                        sent_at=datetime.utcnow()
+                    )
+                    db.session.add(message)
+                    
+                    # Crear interacción
+                    interaction = Interaction(
+                        lead_id=lead.id,
+                        interaction_type='bulk_message_sent',
+                        description=f'Mensaje masivo enviado: {template_name}',
+                        outcome='completed'
+                    )
+                    db.session.add(interaction)
+                    
+                    # Actualizar fecha de último contacto
+                    lead.last_contact_date = datetime.utcnow()
+                    
+                else:
+                    results['failed'] += 1
+                    results['errors'].append(f"Error enviando a {lead.name}")
+                    
+            except Exception as e:
+                results['failed'] += 1
+                results['errors'].append(f"Error procesando {lead.name}: {str(e)}")
+        
+        try:
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error guardando resultados: {e}")
+            db.session.rollback()
+        
+        return results
+    
+    def _format_phone_number(self, phone_number: str) -> str:
+        """Formatear número de teléfono para WhatsApp"""
         # Remover caracteres no numéricos
-        clean_number = re.sub(r'[^\d]', '', phone_number)
+        cleaned = re.sub(r'[^\d+]', '', phone_number)
         
         # Agregar código de país si no está presente
-        if clean_number.startswith('54'):
-            return clean_number
-        elif clean_number.startswith('9') and len(clean_number) == 10:
-            return f"54{clean_number}"
-        elif len(clean_number) == 10:
-            return f"54{clean_number}"
-        else:
-            return clean_number
+        if not cleaned.startswith('+'):
+            if cleaned.startswith('54'):  # Argentina
+                cleaned = '+' + cleaned
+            elif cleaned.startswith('0'):
+                cleaned = '+54' + cleaned[1:]  # Argentina
+            else:
+                cleaned = '+54' + cleaned  # Argentina por defecto
+        
+        return cleaned
+    
+    def _process_message_variables(self, message: str, variables: dict) -> str:
+        """Procesar variables en el mensaje"""
+        for key, value in variables.items():
+            placeholder = f"{{{key}}}"
+            message = message.replace(placeholder, str(value))
+        return message
     
     def format_template(self, template_content: str, lead: Lead) -> str:
         """Formatear plantilla con datos del lead"""
@@ -256,14 +344,69 @@ Equipo Nexa Constructora"""
         ).all()
     
     def send_follow_up_reminders(self):
-        """Enviar recordatorios de seguimiento programados"""
+        """Enviar recordatorios de seguimiento automáticos"""
         try:
-            leads = self.get_leads_needing_follow_up()
-            logger.info(f"Enviando recordatorios a {len(leads)} leads")
+            # Obtener leads que necesitan seguimiento
+            today = datetime.utcnow()
+            leads_needing_follow_up = Lead.query.filter(
+                Lead.next_follow_up <= today,
+                Lead.status.in_([LeadStatus.CONTACTADO, LeadStatus.INTERESADO])
+            ).all()
             
-            for lead in leads:
-                self.send_follow_up_message(lead, 'reminder')
-                
+            if not leads_needing_follow_up:
+                logger.info("No hay leads que necesiten seguimiento")
+                return
+            
+            # Obtener plantilla de seguimiento
+            template = MessageTemplate.query.filter_by(
+                category='follow_up', 
+                is_active=True
+            ).first()
+            
+            if not template:
+                logger.warning("Plantilla de seguimiento no encontrada")
+                return
+            
+            # Enviar recordatorios
+            for lead in leads_needing_follow_up:
+                try:
+                    variables = {
+                        'name': lead.name or 'Cliente',
+                        'company': lead.company or 'Empresa',
+                        'days_since_contact': lead.days_since_contact() or 0
+                    }
+                    
+                    success = self.send_whatsapp_message(
+                        lead.phone_number,
+                        template.content,
+                        'follow_up',
+                        variables
+                    )
+                    
+                    if success:
+                        # Crear interacción
+                        interaction = Interaction(
+                            lead_id=lead.id,
+                            interaction_type='follow_up_reminder',
+                            description='Recordatorio de seguimiento enviado automáticamente',
+                            outcome='completed'
+                        )
+                        db.session.add(interaction)
+                        
+                        # Actualizar fecha de último contacto
+                        lead.last_contact_date = datetime.utcnow()
+                        
+                        # Programar próximo seguimiento (7 días)
+                        lead.next_follow_up = today + timedelta(days=7)
+                        
+                        logger.info(f"Recordatorio enviado a {lead.name}")
+                    
+                except Exception as e:
+                    logger.error(f"Error enviando recordatorio a {lead.name}: {e}")
+            
+            db.session.commit()
+            logger.info(f"Recordatorios enviados: {len(leads_needing_follow_up)} leads")
+            
         except Exception as e:
             logger.error(f"Error en recordatorios automáticos: {e}")
     
@@ -273,31 +416,34 @@ Equipo Nexa Constructora"""
             # Obtener estadísticas de la semana
             week_ago = datetime.utcnow() - timedelta(days=7)
             
-            new_leads = Lead.query.filter(
-                Lead.created_at >= week_ago,
-                Lead.source == LeadSource.WEBSITE
-            ).count()
-            
+            new_leads = Lead.query.filter(Lead.created_at >= week_ago).count()
             converted_leads = Lead.query.filter(
                 Lead.status == LeadStatus.CONVERTIDO,
                 Lead.updated_at >= week_ago
             ).count()
             
-            # Enviar resumen al administrador
-            summary_message = f"""📊 Resumen Semanal - Nexa Constructora
-
-Nuevos leads: {new_leads}
-Leads convertidos: {converted_leads}
-Tasa de conversión: {(converted_leads/new_leads*100) if new_leads > 0 else 0:.1f}%
-
-Revisa el dashboard para más detalles:
-https://tu-dominio.com/dashboard"""
+            # Enviar resumen a administradores
+            admin_users = User.query.filter_by(role='admin', is_active=True).all()
             
-            # Enviar a número de administrador
-            admin_number = os.getenv('ADMIN_WHATSAPP')
-            if admin_number:
-                self.send_whatsapp_message(admin_number, summary_message)
-                
+            summary_message = f"""
+📊 Resumen Semanal - Nexa Lead Manager
+
+🆕 Nuevos Leads: {new_leads}
+✅ Conversiones: {converted_leads}
+📅 Período: {week_ago.strftime('%d/%m/%Y')} - {datetime.utcnow().strftime('%d/%m/%Y')}
+
+¡Excelente trabajo equipo! 🚀
+            """.strip()
+            
+            for admin in admin_users:
+                if admin.phone_number:
+                    self.send_whatsapp_message(
+                        admin.phone_number,
+                        summary_message
+                    )
+            
+            logger.info("Resumen semanal enviado")
+            
         except Exception as e:
             logger.error(f"Error enviando resumen semanal: {e}")
     

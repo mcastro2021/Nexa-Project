@@ -882,6 +882,197 @@ def analytics_page():
 def templates_page():
     return render_template('templates.html')
 
+# ============================================================================
+# GESTIÓN DE USUARIOS
+# ============================================================================
+
+@app.route('/users')
+@login_required
+def users_page():
+    """Página de gestión de usuarios"""
+    if not current_user.can_manage_users():
+        flash('No tienes permisos para acceder a esta página', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('users.html')
+
+@app.route('/api/users')
+@login_required
+def get_users():
+    """Obtener lista de usuarios"""
+    if not current_user.can_manage_users():
+        return jsonify({'error': 'No tienes permisos'}), 403
+    
+    try:
+        users = User.query.all()
+        
+        return jsonify({
+            'users': [{
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': user.role,
+                'is_active': user.is_active,
+                'last_login': user.last_login.isoformat() if user.last_login else None,
+                'created_at': user.created_at.isoformat()
+            } for user in users]
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users', methods=['POST'])
+@login_required
+def create_user():
+    """Crear nuevo usuario"""
+    if not current_user.can_manage_users():
+        return jsonify({'error': 'No tienes permisos'}), 403
+    
+    try:
+        data = request.get_json()
+        
+        # Verificar si el usuario ya existe
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': 'El nombre de usuario ya existe'}), 400
+        
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({'error': 'El email ya está registrado'}), 400
+        
+        # Crear hash de la contraseña
+        from werkzeug.security import generate_password_hash
+        password_hash = generate_password_hash(data['password'])
+        
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            password_hash=password_hash,
+            first_name=data.get('first_name'),
+            last_name=data.get('last_name'),
+            role=data.get('role', 'user'),
+            phone_number=data.get('phone_number')
+        )
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario creado correctamente',
+            'user_id': user.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@login_required
+def update_user(user_id):
+    """Actualizar usuario"""
+    if not current_user.can_manage_users():
+        return jsonify({'error': 'No tienes permisos'}), 403
+    
+    try:
+        user = User.query.get_or_404(user_id)
+        data = request.get_json()
+        
+        # Actualizar campos
+        if 'first_name' in data:
+            user.first_name = data['first_name']
+        if 'last_name' in data:
+            user.last_name = data['last_name']
+        if 'email' in data:
+            # Verificar que el email no esté en uso
+            existing_user = User.query.filter_by(email=data['email']).first()
+            if existing_user and existing_user.id != user_id:
+                return jsonify({'error': 'El email ya está en uso'}), 400
+            user.email = data['email']
+        if 'role' in data:
+            user.role = data['role']
+        if 'is_active' in data:
+            user.is_active = data['is_active']
+        if 'phone_number' in data:
+            user.phone_number = data['phone_number']
+        
+        user.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario actualizado correctamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>/change-password', methods=['POST'])
+@login_required
+def change_user_password(user_id):
+    """Cambiar contraseña de usuario"""
+    try:
+        data = request.get_json()
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        
+        # Si es el propio usuario, verificar contraseña actual
+        if user_id == current_user.id:
+            from werkzeug.security import check_password_hash
+            if not check_password_hash(current_user.password_hash, current_password):
+                return jsonify({'error': 'Contraseña actual incorrecta'}), 400
+        
+        # Si es admin cambiando contraseña de otro usuario, no necesita contraseña actual
+        elif not current_user.can_manage_users():
+            return jsonify({'error': 'No tienes permisos'}), 403
+        
+        # Cambiar contraseña
+        from werkzeug.security import generate_password_hash
+        user = User.query.get_or_404(user_id)
+        user.password_hash = generate_password_hash(new_password)
+        user.password_changed_at = datetime.utcnow()
+        user.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Contraseña cambiada correctamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    """Eliminar usuario"""
+    if not current_user.can_manage_users():
+        return jsonify({'error': 'No tienes permisos'}), 403
+    
+    if user_id == current_user.id:
+        return jsonify({'error': 'No puedes eliminar tu propia cuenta'}), 400
+    
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        # Verificar que no tenga leads asignados
+        if user.assigned_leads:
+            return jsonify({'error': 'No se puede eliminar usuario con leads asignados'}), 400
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Usuario eliminado correctamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
