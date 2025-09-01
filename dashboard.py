@@ -96,24 +96,42 @@ def get_stats():
         interested_leads = Lead.query.filter_by(status=LeadStatus.INTERESADO).count()
         converted_leads = Lead.query.filter_by(status=LeadStatus.CONVERTIDO).count()
         
-        # Leads que necesitan seguimiento
-        today = datetime.utcnow()
-        leads_needing_follow_up = Lead.query.filter(
-            Lead.next_follow_up <= today,
-            Lead.status.in_([LeadStatus.NUEVO, LeadStatus.CONTACTADO, LeadStatus.INTERESADO])
-        ).count()
+        # Leads que necesitan seguimiento (manejar columna que puede no existir)
+        leads_needing_follow_up = 0
+        try:
+            today = datetime.utcnow()
+            leads_needing_follow_up = Lead.query.filter(
+                Lead.next_follow_up <= today,
+                Lead.status.in_([LeadStatus.NUEVO, LeadStatus.CONTACTADO, LeadStatus.INTERESADO])
+            ).count()
+        except Exception:
+            # Si la columna next_follow_up no existe, usar lógica alternativa
+            leads_needing_follow_up = Lead.query.filter(
+                Lead.status.in_([LeadStatus.NUEVO, LeadStatus.CONTACTADO])
+            ).count()
         
         # Mensajes enviados hoy
-        messages_today = Message.query.filter(
-            Message.created_at >= today.replace(hour=0, minute=0, second=0, microsecond=0)
-        ).count()
+        messages_today = 0
+        try:
+            today = datetime.utcnow()
+            messages_today = Message.query.filter(
+                Message.created_at >= today.replace(hour=0, minute=0, second=0, microsecond=0)
+            ).count()
+        except Exception:
+            # Si hay error, usar 0
+            messages_today = 0
         
         # Conversiones de la semana
-        week_ago = datetime.utcnow() - timedelta(days=7)
-        weekly_conversions = Lead.query.filter(
-            Lead.status == LeadStatus.CONVERTIDO,
-            Lead.updated_at >= week_ago
-        ).count()
+        weekly_conversions = 0
+        try:
+            week_ago = datetime.utcnow() - timedelta(days=7)
+            weekly_conversions = Lead.query.filter(
+                Lead.status == LeadStatus.CONVERTIDO,
+                Lead.updated_at >= week_ago
+            ).count()
+        except Exception:
+            # Si hay error, usar 0
+            weekly_conversions = 0
         
         return jsonify({
             'total_leads': total_leads,
@@ -127,6 +145,7 @@ def get_stats():
         })
         
     except Exception as e:
+        logger.error(f"Error obteniendo estadísticas: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/leads')
@@ -353,6 +372,59 @@ def get_templates():
         })
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/templates', methods=['POST'])
+@login_required
+def create_template():
+    """Crear nueva plantilla de mensaje"""
+    try:
+        data = request.get_json()
+        
+        template = MessageTemplate(
+            name=data['name'],
+            category=data['category'],
+            content=data['content'],
+            variables=data.get('variables', '{}')
+        )
+        
+        db.session.add(template)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Plantilla creada correctamente',
+            'template_id': template.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/templates/<int:template_id>', methods=['DELETE'])
+@login_required
+def delete_template(template_id):
+    """Eliminar plantilla de mensaje"""
+    try:
+        template = MessageTemplate.query.get_or_404(template_id)
+        
+        # Verificar si la plantilla está siendo usada en campañas
+        campaigns_using_template = Campaign.query.filter_by(template_id=template_id).count()
+        if campaigns_using_template > 0:
+            return jsonify({
+                'error': f'No se puede eliminar la plantilla porque está siendo usada en {campaigns_using_template} campaña(s)'
+            }), 400
+        
+        db.session.delete(template)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Plantilla eliminada correctamente'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analytics')

@@ -1,25 +1,17 @@
-#!/usr/bin/env bash
-# Script de build para Render
-# Maneja la instalación de dependencias de manera más robusta
+#!/bin/bash
 
-echo "🚀 Iniciando build en Render..."
+echo "🚀 Iniciando build de Nexa Project..."
 
-# Actualizar pip
-echo "📦 Actualizando pip..."
-pip install --upgrade pip
-
-# Instalar dependencias de Python (sin pandas)
-echo "📦 Instalando dependencias de Python..."
+# Instalar dependencias
+echo "📦 Instalando dependencias..."
 pip install -r requirements.txt
 
-# Verificar instalación
-echo "✅ Verificando instalación..."
-python -c "import flask; print(f'Flask version: {flask.__version__}')"
-python -c "import twilio; print('Twilio instalado correctamente')"
-python -c "import openai; print('OpenAI instalado correctamente')"
+# Ejecutar migración de base de datos
+echo "🗄️ Ejecutando migración de base de datos..."
+python migrate_database.py
 
-# Configurar entorno para Render
-echo "🔧 Configurando entorno para Render..."
+# Ejecutar inicialización de Render
+echo "⚙️ Configurando entorno de Render..."
 python init_render.py
 
-echo "🎉 Build completado exitosamente!"
+echo "✅ Build completado exitosamente!"
