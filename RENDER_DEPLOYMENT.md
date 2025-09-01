@@ -52,9 +52,9 @@ Si ves errores de compilación de pandas:
 2. O cambiar el comando de build a: `chmod +x build-fallback.sh && ./build-fallback.sh`
 
 ### **Error de Python 3.13**
-El proyecto está configurado para Python 3.11.5:
-- `runtime.txt`: python-3.11.5
-- `render.yaml`: PYTHON_VERSION=3.11.5
+El proyecto está configurado para Python 3.10.12:
+- `runtime.txt`: python-3.10.12
+- `render.yaml`: PYTHON_VERSION=3.10.12
 
 ### **Error de dependencias**
 Si hay problemas con dependencias:
@@ -65,8 +65,8 @@ Si hay problemas con dependencias:
 
 ### **Logs de Build**
 - Revisar logs en el dashboard de Render
-- Buscar errores específicos de pandas
-- Verificar que Python 3.11.5 se use
+- Verificar que Python 3.10.12 se use
+- Confirmar que no hay errores de pandas
 
 ### **Logs de Aplicación**
 - Monitorear logs en tiempo real

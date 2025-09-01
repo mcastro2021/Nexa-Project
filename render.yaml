@@ -7,7 +7,7 @@ services:
     startCommand: gunicorn dashboard:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.5
+        value: 3.10.12
       - key: SECRET_KEY
         generateValue: true
       - key: FLASK_ENV

@@ -415,38 +415,45 @@ https://tu-dominio.com/dashboard"""
             }
     
     def import_leads_from_csv(self, csv_file_path: str) -> Tuple[int, int]:
-        """Importar leads desde archivo CSV"""
-        import pandas as pd
+        """Importar leads desde archivo CSV usando Python nativo"""
+        import csv
         
         try:
-            df = pd.read_csv(csv_file_path)
             imported = 0
             skipped = 0
             
-            for _, row in df.iterrows():
-                try:
-                    # Verificar si el lead ya existe
-                    existing = Lead.query.filter_by(phone_number=str(row['phone_number'])).first()
-                    if existing:
+            with open(csv_file_path, 'r', encoding='utf-8') as file:
+                reader = csv.DictReader(file)
+                
+                for row in reader:
+                    try:
+                        # Verificar si el lead ya existe
+                        phone_number = str(row.get('phone_number', '')).strip()
+                        if not phone_number:
+                            skipped += 1
+                            continue
+                            
+                        existing = Lead.query.filter_by(phone_number=phone_number).first()
+                        if existing:
+                            skipped += 1
+                            continue
+                        
+                        lead = Lead(
+                            phone_number=phone_number,
+                            name=row.get('name', '').strip(),
+                            email=row.get('email', '').strip(),
+                            company=row.get('company', '').strip(),
+                            source=LeadSource.WEBSITE,
+                            status=LeadStatus.NUEVO,
+                            notes=row.get('notes', 'Importado desde CSV')
+                        )
+                        
+                        db.session.add(lead)
+                        imported += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Error importando fila: {e}")
                         skipped += 1
-                        continue
-                    
-                    lead = Lead(
-                        phone_number=str(row['phone_number']),
-                        name=row.get('name'),
-                        email=row.get('email'),
-                        company=row.get('company'),
-                        source=LeadSource.WEBSITE,
-                        status=LeadStatus.NUEVO,
-                        notes=row.get('notes', 'Importado desde CSV')
-                    )
-                    
-                    db.session.add(lead)
-                    imported += 1
-                    
-                except Exception as e:
-                    logger.error(f"Error importando fila: {e}")
-                    skipped += 1
             
             db.session.commit()
             logger.info(f"Importación completada: {imported} importados, {skipped} omitidos")

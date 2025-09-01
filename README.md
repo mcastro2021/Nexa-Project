@@ -235,12 +235,12 @@ El proyecto incluye configuración automática para Render:
 5. Desplegar automáticamente
 
 **Solución para errores de pandas:**
-- El proyecto incluye `build.sh` que instala pandas con wheels precompilados
-- Versiones actualizadas para compatibilidad con Python 3.11.5
-- Archivo `requirements-render.txt` específico para Render
-- Script alternativo `build-fallback.sh` para casos extremos
+- **Eliminado pandas completamente** - Usa Python nativo para CSV
+- Versiones actualizadas para compatibilidad con Python 3.10.12
+- Archivo `requirements.txt` optimizado sin dependencias problemáticas
+- Script `build.sh` simplificado sin pandas
 - Opción Docker con `render-docker.yaml`
-- Archivo `requirements-minimal.txt` sin pandas como respaldo
+- Archivo `sample_leads.csv` incluido para pruebas
 
 ### **Opción 2: Heroku**
 ```bash

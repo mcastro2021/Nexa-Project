@@ -1,5 +1,5 @@
 # Dockerfile para Nexa Lead Manager
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 # Establecer directorio de trabajo
 WORKDIR /app
@@ -11,14 +11,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar archivos de requirements
-COPY requirements-render.txt .
+COPY requirements.txt .
 
-# Instalar pandas primero con wheels precompilados
+# Instalar dependencias de Python
 RUN pip install --upgrade pip && \
-    pip install --only-binary=all pandas==2.0.3
-
-# Instalar el resto de dependencias
-RUN pip install -r requirements-render.txt
+    pip install -r requirements.txt
 
 # Copiar código de la aplicación
 COPY . .
