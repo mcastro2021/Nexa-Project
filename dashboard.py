@@ -8,8 +8,8 @@ import logging
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import plotly.graph_objs as go
-import plotly.utils
+# import plotly.graph_objs as go
+# import plotly.utils
 import json
 from datetime import datetime, timedelta
 from models import db, User, Lead, LeadStatus, LeadSource, Message, MessageTemplate, Campaign, CampaignResult, Interaction
@@ -357,43 +357,11 @@ def get_analytics():
                 'conversions': 0
             }
         
-        # Crear gráfico de distribución por estado
-        status_labels = list(analytics.get('status_distribution', {}).keys())
-        status_values = list(analytics.get('status_distribution', {}).values())
-        
-        if not status_labels:
-            status_labels = ['Sin datos']
-            status_values = [1]
-        
-        status_fig = go.Figure(data=[
-            go.Pie(
-                labels=status_labels,
-                values=status_values,
-                hole=0.3
-            )
-        ])
-        status_fig.update_layout(title='Distribución por Estado')
-        
-        # Crear gráfico de distribución por fuente
-        source_labels = list(analytics.get('source_distribution', {}).keys())
-        source_values = list(analytics.get('source_distribution', {}).values())
-        
-        if not source_labels:
-            source_labels = ['Sin datos']
-            source_values = [1]
-        
-        source_fig = go.Figure(data=[
-            go.Bar(
-                x=source_labels,
-                y=source_values
-            )
-        ])
-        source_fig.update_layout(title='Leads por Fuente')
-        
+        # Retornar solo los datos sin gráficos (plotly removido)
         return jsonify({
             'analytics': analytics,
-            'status_chart': json.dumps(status_fig, cls=plotly.utils.PlotlyJSONEncoder),
-            'source_chart': json.dumps(source_fig, cls=plotly.utils.PlotlyJSONEncoder)
+            'status_chart': None,  # Gráfico deshabilitado temporalmente
+            'source_chart': None   # Gráfico deshabilitado temporalmente
         })
         
     except Exception as e:
