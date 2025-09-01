@@ -24,4 +24,4 @@ COPY . .
 EXPOSE 8000
 
 # Comando de inicio
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "--bind", "0.0.0.0:8000", "dashboard:app"]
+CMD ["gunicorn", "--config", "gunicorn.conf.py", "--bind", "0.0.0.0:8000", "wsgi:app"]

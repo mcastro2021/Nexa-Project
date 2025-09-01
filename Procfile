@@ -1,1 +1,1 @@
-web: gunicorn dashboard:app
+web: gunicorn --config gunicorn.conf.py wsgi:app
