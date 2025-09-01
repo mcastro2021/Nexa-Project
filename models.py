@@ -70,7 +70,7 @@ class Message(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relaciones
-    campaign_results = db.relationship('CampaignResult', backref='message', lazy=True, cascade='all, delete-orphan')
+    campaign_results = db.relationship('CampaignResult', backref='message_ref', lazy=True, cascade='all, delete-orphan')
 
 class MessageTemplate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -94,6 +94,7 @@ class Campaign(db.Model):
     
     # Relaciones
     template = db.relationship('MessageTemplate')
+    results = db.relationship('CampaignResult', backref='campaign_ref', lazy=True, cascade='all, delete-orphan')
 
 class CampaignResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -105,10 +106,8 @@ class CampaignResult(db.Model):
     delivered_at = db.Column(db.DateTime)
     read_at = db.Column(db.DateTime)
     
-    # Relaciones
-    campaign = db.relationship('Campaign')
-    lead = db.relationship('Lead')
-    message = db.relationship('Message')
+    # Relaciones - Sin backref para evitar conflictos
+    # lead = db.relationship('Lead', backref='campaign_results')  # Comentado para evitar conflicto
 
 # Funciones de utilidad para los modelos
 def get_leads_by_status(status: LeadStatus):
