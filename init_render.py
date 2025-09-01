@@ -237,8 +237,8 @@ def recreate_message_table(cursor):
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 lead_id INTEGER NOT NULL,
                 content TEXT NOT NULL,
-                message_type VARCHAR(20) DEFAULT 'outbound',
-                status VARCHAR(20) DEFAULT 'pending',
+                message_type TEXT DEFAULT 'outbound',
+                status TEXT DEFAULT 'pending',
                 scheduled_at DATETIME,
                 sent_at DATETIME,
                 delivered_at DATETIME,
@@ -259,8 +259,8 @@ def create_message_table(cursor):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             lead_id INTEGER NOT NULL,
             content TEXT NOT NULL,
-            message_type VARCHAR(20) DEFAULT 'outbound',
-            status VARCHAR(20) DEFAULT 'pending',
+            message_type TEXT DEFAULT 'outbound',
+            status TEXT DEFAULT 'pending',
             scheduled_at DATETIME,
             sent_at DATETIME,
             delivered_at DATETIME,
@@ -276,20 +276,20 @@ def create_lead_table(cursor):
     cursor.execute("""
         CREATE TABLE lead (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name VARCHAR(100) NOT NULL,
-            phone_number VARCHAR(20) UNIQUE NOT NULL,
-            email VARCHAR(120),
-            company VARCHAR(100),
-            status VARCHAR(20) DEFAULT 'NUEVO',
-            source VARCHAR(20) DEFAULT 'OTRO',
+            name TEXT NOT NULL,
+            phone_number TEXT UNIQUE NOT NULL,
+            email TEXT,
+            company TEXT,
+            status TEXT DEFAULT 'NUEVO',
+            source TEXT DEFAULT 'OTRO',
             interest_level INTEGER DEFAULT 3,
             notes TEXT,
             next_follow_up DATETIME,
             last_contact_date DATETIME,
-            priority VARCHAR(20) DEFAULT 'medium',
-            estimated_value DECIMAL(10, 2),
-            project_type VARCHAR(100),
-            location VARCHAR(200),
+            priority TEXT DEFAULT 'medium',
+            estimated_value REAL,
+            project_type TEXT,
+            location TEXT,
             created_by_id INTEGER,
             assigned_to_id INTEGER,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -303,14 +303,14 @@ def create_user_table(cursor):
     cursor.execute("""
         CREATE TABLE user (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username VARCHAR(80) UNIQUE NOT NULL,
-            email VARCHAR(120) UNIQUE NOT NULL,
-            password_hash VARCHAR(255) NOT NULL,
-            first_name VARCHAR(50),
-            last_name VARCHAR(50),
-            phone_number VARCHAR(20),
-            role VARCHAR(20) DEFAULT 'user',
-            is_active BOOLEAN DEFAULT TRUE,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            phone_number TEXT,
+            role TEXT DEFAULT 'user',
+            is_active INTEGER DEFAULT 1,
             last_login DATETIME,
             password_changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -324,7 +324,7 @@ def create_user_table(cursor):
     admin_password = generate_password_hash('admin123')
     cursor.execute("""
         INSERT INTO user (username, email, password_hash, first_name, last_name, role, is_active)
-        VALUES ('admin', 'admin@nexa.com', ?, 'Administrador', 'Sistema', 'admin', TRUE)
+        VALUES ('admin', 'admin@nexa.com', ?, 'Administrador', 'Sistema', 'admin', 1)
     """, (admin_password,))
     print("✅ Usuario administrador creado: admin/admin123")
 
@@ -333,11 +333,11 @@ def create_message_template_table(cursor):
     cursor.execute("""
         CREATE TABLE message_template (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name VARCHAR(100) NOT NULL,
-            category VARCHAR(50) NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
             content TEXT NOT NULL,
             variables TEXT,
-            is_active BOOLEAN DEFAULT TRUE,
+            is_active INTEGER DEFAULT 1,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -345,9 +345,9 @@ def create_message_template_table(cursor):
     # Insertar plantillas por defecto
     cursor.execute("""
         INSERT INTO message_template (name, category, content, is_active) VALUES 
-        ('Bienvenida', 'welcome', '¡Hola {name}! Gracias por tu interés en Nexa Constructora. ¿En qué proyecto estás pensando?', TRUE),
-        ('Seguimiento', 'follow_up', 'Hola {name}, ¿cómo estás? Te escribo para hacer seguimiento de tu interés en nuestros servicios.', TRUE),
-        ('Oferta', 'offer', '¡{name}! Tenemos una oferta especial para ti: 15% de descuento en proyectos de construcción.', TRUE)
+        ('Bienvenida', 'welcome', '¡Hola {name}! Gracias por tu interés en Nexa Constructora. ¿En qué proyecto estás pensando?', 1),
+        ('Seguimiento', 'follow_up', 'Hola {name}, ¿cómo estás? Te escribo para hacer seguimiento de tu interés en nuestros servicios.', 1),
+        ('Oferta', 'offer', '¡{name}! Tenemos una oferta especial para ti: 15% de descuento en proyectos de construcción.', 1)
     """)
     print("✅ Tabla 'message_template' creada con plantillas por defecto")
 

@@ -72,7 +72,7 @@ class Lead(db.Model):
     next_follow_up = db.Column(db.DateTime)
     last_contact_date = db.Column(db.DateTime)
     priority = db.Column(db.String(20), default='medium')  # low, medium, high, urgent
-    estimated_value = db.Column(db.Decimal(10, 2))  # Valor estimado del proyecto
+    estimated_value = db.Column(db.Float)  # Valor estimado del proyecto
     project_type = db.Column(db.String(100))  # Tipo de proyecto
     location = db.Column(db.String(200))  # Ubicación del proyecto
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
