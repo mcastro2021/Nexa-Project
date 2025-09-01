@@ -36,22 +36,19 @@ if os.getenv('RENDER'):
     print("🚀 Detectado entorno Render - usando BD en directorio raíz")
 else:
     # Entorno local, usar directorio instance
-    database_path = os.getenv('DATABASE_URL', 'sqlite:///instance/nexa_leads.db')
-    if database_path.startswith('sqlite:///'):
-        if not database_path.startswith('sqlite:////'):
-            db_file = database_path.replace('sqlite:///', '')
-            if not db_file.startswith('instance/'):
-                db_file = os.path.join('instance', db_file)
-            database_path = f'sqlite:///{db_file}'
+    database_path = 'sqlite:///instance/nexa_leads.db'
+    print("🏠 Entorno local detectado - usando BD en directorio instance")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_path
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configurar directorios (solo crear si no estamos en Render)
+# Configurar directorios
 if not os.getenv('RENDER'):
     os.makedirs('instance', exist_ok=True)
+    print("📁 Directorio instance creado")
 os.makedirs('logs', exist_ok=True)
 os.makedirs('uploads', exist_ok=True)
+print("📁 Directorios logs y uploads creados")
 
 def force_migrate_database_on_startup():
     """Migración forzada de base de datos al inicio de la aplicación"""
@@ -65,26 +62,55 @@ def force_migrate_database_on_startup():
         else:
             db_path = os.path.join('instance', 'nexa_leads.db')  # Local
             print("🗄️ Entorno local detectado - BD en directorio instance")
+            
+        print(f"🗄️ Ruta de base de datos: {db_path}")
+        
+        should_migrate = False
         
         if os.path.exists(db_path):
-            # Verificar si la columna first_name existe
+            # Verificar si la base de datos existe y tiene la estructura correcta
             try:
                 import sqlite3
                 conn = sqlite3.connect(db_path)
                 cursor = conn.cursor()
-                cursor.execute("PRAGMA table_info(user)")
-                columns = [col[1] for col in cursor.fetchall()]
                 
-                if 'first_name' in columns:
-                    print("✅ Base de datos ya tiene la estructura correcta")
+                # Verificar que la tabla user existe
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='user'")
+                if not cursor.fetchone():
+                    print("⚠️ Tabla 'user' no existe, ejecutando migración...")
                     conn.close()
-                    return True
+                    should_migrate = True
                 else:
-                    print("⚠️ Columna 'first_name' no existe, ejecutando migración...")
-                    conn.close()
+                    # Verificar estructura de la tabla user
+                    cursor.execute("PRAGMA table_info(user)")
+                    columns = {col[1]: col[2] for col in cursor.fetchall()}
+                    
+                    # Verificar columnas críticas
+                    critical_columns = ['id', 'username', 'email', 'password_hash', 'first_name', 'last_name']
+                    missing_critical = [col for col in critical_columns if col not in columns]
+                    
+                    if missing_critical:
+                        print(f"⚠️ Columnas críticas faltantes: {missing_critical}, ejecutando migración...")
+                        conn.close()
+                        should_migrate = True
+                    else:
+                        print("✅ Base de datos ya tiene la estructura correcta")
+                        conn.close()
+                        return True
+                        
             except Exception as e:
                 print(f"⚠️ Error verificando BD: {e}")
+                should_migrate = True
+        else:
+            # Base de datos no existe, ejecutar migración
+            print("⚠️ Base de datos no existe, ejecutando migración...")
+            should_migrate = True
         
+        # Solo ejecutar migración si es necesaria
+        if not should_migrate:
+            print("✅ Migración no necesaria")
+            return True
+            
         # Ejecutar migración forzada
         print("🗄️ Ejecutando migración forzada...")
         
@@ -101,7 +127,7 @@ def force_migrate_database_on_startup():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
-        # Crear tabla user con todas las columnas
+        # Crear tabla user con todas las columnas (debe coincidir exactamente con el modelo)
         cursor.execute("""
             CREATE TABLE user (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,7 +138,7 @@ def force_migrate_database_on_startup():
                 last_name TEXT,
                 phone_number TEXT,
                 role TEXT DEFAULT 'user',
-                is_active INTEGER DEFAULT 1,
+                is_active BOOLEAN DEFAULT 1,
                 last_login DATETIME,
                 password_changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -121,7 +147,7 @@ def force_migrate_database_on_startup():
         """)
         print("✅ Tabla 'user' creada")
         
-        # Crear tabla lead
+        # Crear tabla lead (debe coincidir exactamente con el modelo)
         cursor.execute("""
             CREATE TABLE lead (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,8 +155,8 @@ def force_migrate_database_on_startup():
                 phone_number TEXT UNIQUE NOT NULL,
                 email TEXT,
                 company TEXT,
-                status TEXT DEFAULT 'NUEVO',
-                source TEXT DEFAULT 'OTRO',
+                status TEXT DEFAULT 'nuevo',
+                source TEXT DEFAULT 'otro',
                 interest_level INTEGER DEFAULT 3,
                 notes TEXT,
                 next_follow_up DATETIME,
@@ -147,7 +173,7 @@ def force_migrate_database_on_startup():
         """)
         print("✅ Tabla 'lead' creada")
         
-        # Crear tabla message
+        # Crear tabla message (debe coincidir exactamente con el modelo)
         cursor.execute("""
             CREATE TABLE message (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,7 +191,7 @@ def force_migrate_database_on_startup():
         """)
         print("✅ Tabla 'message' creada")
         
-        # Crear tabla message_template
+        # Crear tabla message_template (debe coincidir exactamente con el modelo)
         cursor.execute("""
             CREATE TABLE message_template (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,13 +199,13 @@ def force_migrate_database_on_startup():
                 category TEXT NOT NULL,
                 content TEXT NOT NULL,
                 variables TEXT,
-                is_active INTEGER DEFAULT 1,
+                is_active BOOLEAN DEFAULT 1,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
         print("✅ Tabla 'message_template' creada")
         
-        # Crear tabla campaign
+        # Crear tabla campaign (debe coincidir exactamente con el modelo)
         cursor.execute("""
             CREATE TABLE campaign (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -189,14 +215,14 @@ def force_migrate_database_on_startup():
                 target_status TEXT,
                 target_source TEXT,
                 scheduled_date DATETIME,
-                is_active INTEGER DEFAULT 1,
+                is_active BOOLEAN DEFAULT 1,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (template_id) REFERENCES message_template (id)
             )
         """)
         print("✅ Tabla 'campaign' creada")
         
-        # Crear tabla campaign_result
+        # Crear tabla campaign_result (debe coincidir exactamente con el modelo)
         cursor.execute("""
             CREATE TABLE campaign_result (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -211,7 +237,7 @@ def force_migrate_database_on_startup():
         """)
         print("✅ Tabla 'campaign_result' creada")
         
-        # Crear tabla interaction
+        # Crear tabla interaction (debe coincidir exactamente con el modelo)
         cursor.execute("""
             CREATE TABLE interaction (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,6 +275,56 @@ def force_migrate_database_on_startup():
         conn.commit()
         conn.close()
         
+        # Verificar que la estructura coincida con el modelo
+        print("🔍 Verificando estructura de la base de datos...")
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Verificar tabla user
+            cursor.execute("PRAGMA table_info(user)")
+            user_columns = {col[1]: col[2] for col in cursor.fetchall()}
+            expected_user_columns = {
+                'id': 'INTEGER',
+                'username': 'TEXT',
+                'email': 'TEXT',
+                'password_hash': 'TEXT',
+                'first_name': 'TEXT',
+                'last_name': 'TEXT',
+                'phone_number': 'TEXT',
+                'role': 'TEXT',
+                'is_active': 'BOOLEAN',
+                'last_login': 'DATETIME',
+                'password_changed_at': 'DATETIME',
+                'created_at': 'DATETIME',
+                'updated_at': 'DATETIME'
+            }
+            
+            missing_columns = []
+            for col, col_type in expected_user_columns.items():
+                if col not in user_columns:
+                    missing_columns.append(f"{col} ({col_type})")
+            
+            if missing_columns:
+                print(f"⚠️ Columnas faltantes en tabla user: {missing_columns}")
+                # Agregar columnas faltantes
+                for col in missing_columns:
+                    col_name = col.split(' (')[0]
+                    col_type = col.split('(')[1].split(')')[0]
+                    try:
+                        cursor.execute(f"ALTER TABLE user ADD COLUMN {col_name} {col_type}")
+                        print(f"✅ Columna {col_name} agregada")
+                    except Exception as e:
+                        print(f"⚠️ No se pudo agregar columna {col_name}: {e}")
+            else:
+                print("✅ Estructura de tabla user correcta")
+            
+            conn.commit()
+            conn.close()
+            
+        except Exception as e:
+            print(f"⚠️ Error verificando estructura: {e}")
+        
         print("✅ Migración forzada completada exitosamente!")
         return True
         
@@ -266,28 +342,25 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Crear todas las tablas de la base de datos
+# Verificar que la base de datos esté disponible y las tablas existan
 with app.app_context():
     try:
-        print("🗄️ Creando tablas de la base de datos...")
+        print("🗄️ Verificando base de datos...")
         
         # Verificar que la base de datos esté disponible
         if not db.engine:
             print("❌ Motor de base de datos no disponible")
             raise Exception("Motor de base de datos no disponible")
         
-        # Crear tablas
-        db.create_all()
-        print("✅ Tablas creadas exitosamente")
-        
-        # Verificar que las tablas se crearon correctamente
+        # Verificar que las tablas existan (no crear, solo verificar)
         inspector = db.inspect(db.engine)
         tables = inspector.get_table_names()
         print(f"📋 Tablas disponibles: {tables}")
         
-        # Crear usuario admin por defecto si no existe
+        # Verificar que el usuario admin existe
         admin_user = User.query.filter_by(username='admin').first()
         if not admin_user:
+            print("⚠️ Usuario admin no encontrado, creando...")
             from werkzeug.security import generate_password_hash
             admin_user = User(
                 username='admin',
@@ -304,8 +377,10 @@ with app.app_context():
         else:
             print("ℹ️ Usuario admin ya existe")
             
+        print("✅ Base de datos verificada correctamente")
+            
     except Exception as e:
-        print(f"❌ Error creando tablas: {e}")
+        print(f"❌ Error verificando base de datos: {e}")
         print("⚠️ La aplicación continuará pero puede no funcionar correctamente")
         # Continuar con la aplicación incluso si hay errores de BD
 
@@ -1434,22 +1509,6 @@ def delete_user(user_id):
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        
-        # Crear usuario admin por defecto si no existe
-        admin_user = User.query.filter_by(username='admin').first()
-        if not admin_user:
-            admin_user = User(
-                username='admin',
-                email='admin@nexaconstructora.com.ar',
-                password_hash=generate_password_hash('admin123'),
-                is_admin=True
-            )
-            db.session.add(admin_user)
-            db.session.commit()
-            print("Usuario admin creado: admin / admin123")
-    
     # Configuración para producción
     port = int(os.environ.get('PORT', 5001))
     debug = os.environ.get('FLASK_ENV') == 'development'
