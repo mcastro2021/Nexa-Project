@@ -234,6 +234,11 @@ El proyecto incluye configuración automática para Render:
 4. Configurar variables de entorno en el dashboard de Render
 5. Desplegar automáticamente
 
+**Solución para errores de pandas:**
+- El proyecto incluye `build.sh` que instala pandas con wheels precompilados
+- Versiones actualizadas para compatibilidad con Python 3.11
+- Archivo `requirements-render.txt` específico para Render
+
 ### **Opción 2: Heroku**
 ```bash
 # Crear aplicación
